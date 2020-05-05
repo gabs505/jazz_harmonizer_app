@@ -7,7 +7,7 @@
 */
 
 #include <JuceHeader.h>
-#include "MidiMessageTutorial_01.h"
+#include "MainComponentApp.h"
 
 class Application : public JUCEApplication
 {
@@ -15,10 +15,10 @@ public:
 	//==============================================================================
 	Application() {}
 
-	const String getApplicationName() override { return "MidiMessageTutorial"; }
+	const String getApplicationName() override { return "SynthUsingMidiInputTutorial"; }
 	const String getApplicationVersion() override { return "1.0.0"; }
 
-	void initialise(const String&) override { mainWindow.reset(new MainWindow("MidiMessageTutorial", new MainContentComponent(), *this)); }
+	void initialise(const String&) override { mainWindow.reset(new MainWindow("SynthUsingMidiInputTutorial", new MainContentComponent(), *this)); }
 	void shutdown() override { mainWindow = nullptr; }
 
 private:
