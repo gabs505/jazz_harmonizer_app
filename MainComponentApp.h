@@ -46,6 +46,7 @@
 
 
 #pragma once
+#include <math.h>
 
 //==============================================================================
 struct SineWaveSound : public SynthesiserSound
@@ -127,13 +128,13 @@ struct SineWaveVoice : public SynthesiserVoice
 			{
 				while (--numSamples >= 0) // [6]
 				{
-					auto currentSample = (float)(std::sin(currentAngle) * level);
+				auto currentSample = (float)(std::sin(currentAngle) * level);
 
-					for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-						outputBuffer.addSample(i, startSample, currentSample);
+				for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
+					outputBuffer.addSample(i, startSample, currentSample);
 
-					currentAngle += angleDelta;
-					++startSample;
+				currentAngle += angleDelta;
+				++startSample;
 				}
 			}
 		}
@@ -175,7 +176,7 @@ public:
 		MidiBuffer incomingMidi;
 		MidiMessage m;
 		int time;
-		
+
 		if (midiIsPlaying) {
 			int sampleDeltaToAdd = -samplesPlayed;
 			for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
@@ -183,8 +184,8 @@ public:
 					incomingMidi.addEvent(m, time);
 					currentSample = time;
 				}
-					
-				
+
+
 			}
 			//incomingMidi.addEvents(*midiBuffer, samplesPlayed, bufferToFill.numSamples, sampleDeltaToAdd); //adding all messages at once
 			samplesPlayed += bufferToFill.numSamples;
@@ -198,7 +199,7 @@ public:
 		synth.renderNextBlock(*bufferToFill.buffer, incomingMidi,
 			bufferToFill.startSample, bufferToFill.numSamples);
 
-	
+
 	}
 
 	void loadMidi(File fileMIDI) {
@@ -211,14 +212,15 @@ public:
 
 	void setMidiFile() {
 		midiBufferMelody->clear(); //clearing midi buffer if any midi file was already loaded
-		
+
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
-				/*if(m.isTempoMetaEvent())
-					DBG("Hello!");*/
+				if (m.isTempoMetaEvent()) {
+					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
+				}
 				//m.setNoteNumber(m.getNoteNumber() + 30);
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 				midiBufferMelody->addEvent(m, sampleOffset);
@@ -226,6 +228,16 @@ public:
 			}
 		}
 		midiBuffer = midiBufferMelody;
+
+		if (midiBuffer->isEmpty()) {
+			DBG("Hi!");
+		}
+
+	
+	}
+
+	void playMelody() {
+
 
 		samplesPlayed = 0;
 		midiIsPlaying = true;
@@ -239,18 +251,23 @@ public:
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
-				m.setNoteNumber(m.getNoteNumber() + 5);
+				m.setNoteNumber(m.getNoteNumber());
+
+				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 
 				MidiMessage m3;
 				if (m.isTempoMetaEvent()) {
-					DBG(String(m.getTempoSecondsPerQuarterNote()*synth.getSampleRate()));
+					quarterNoteLengthInSamples=round(m.getTempoSecondsPerQuarterNote()*synth.getSampleRate());
 				}
-				else if(m.isNoteOn())
-					 m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber()+7,(uint8)100);
-				else if (m.isNoteOff()) 
-					 m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+				/*if (sampleOffset>=) {
+					if (m.isNoteOn())
+						m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+					else if (m.isNoteOff())
+						m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+				}*/
+				
 
-				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
+				
 				midiBufferChords->addEvent(m, sampleOffset);
 				midiBufferChords->addEvent(m3, sampleOffset+1);
 				
@@ -261,6 +278,34 @@ public:
 
 		samplesPlayed = 0;
 		midiIsPlaying = true;
+	}
+
+	void quantize() {
+		MidiMessage m; 
+		int time; 
+		ScopedPointer<MidiBuffer> buffer = new MidiBuffer();
+		int sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples/4);
+		/*DBG(String(quarterNoteLengthInSamples));
+		DBG(String(sixteenthNoteLengthInSamples%512));*/
+		for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
+			//buffer->addEvent(m, time);
+			if (time == 0 ) {
+				buffer->addEvent(m, time);
+			}
+			else {
+				if (time % sixteenthNoteLengthInSamples == 0) {
+					buffer->addEvent(m, time);
+
+				}
+				else {
+					buffer->addEvent(m, floor(time - time % sixteenthNoteLengthInSamples));
+					DBG(String(floor(time - time % sixteenthNoteLengthInSamples)));
+				}
+
+			}
+			
+		}
+		midiBuffer=buffer;
 	}
 
 	
@@ -279,8 +324,6 @@ public:
 
 	void pauseResumePlayback(){
 
-		/*sendAllNotesOff(*midiBuffer);*/
-
 		if (midiIsPaused) {
 			midiIsPlaying = true;
 			midiIsPaused = false;
@@ -289,14 +332,11 @@ public:
 		else {
 			midiIsPlaying = false;
 			midiIsPaused = true;
-		}
-		
-			
-
-		
-		
+		}	
 
 	}
+
+	
 
 	ScopedPointer<MidiBuffer> midiBuffer = new MidiBuffer();
 	ScopedPointer<MidiBuffer> midiBufferMelody = new MidiBuffer();
@@ -335,11 +375,12 @@ public:
 		
 		button.onClick = [this] {FileChooser theFileChooser("Find a MIDI file", File(), "*.mid*");
 		theFileChooser.browseForFileToOpen();
-		synthAudioSource.loadMidi(theFileChooser.getResult()); };
+		synthAudioSource.loadMidi(theFileChooser.getResult());
+		synthAudioSource.setMidiFile(); };
 
 		addAndMakeVisible(playMidi);
 		playMidi.setButtonText("Play MIDI");
-		playMidi.onClick = [this] {synthAudioSource.setMidiFile(); };
+		playMidi.onClick = [this] {synthAudioSource.playMelody(); };
 
 		addAndMakeVisible(pauseResume);
 		pauseResume.setButtonText("Play/Pause");
@@ -348,6 +389,10 @@ public:
 		addAndMakeVisible(playChords);
 		playChords.onClick = [this] {synthAudioSource.playChords(); };
 		playChords.setButtonText("Play Chords");
+
+		addAndMakeVisible(quantizeButton);
+		quantizeButton.onClick = [this] {synthAudioSource.quantize(); };
+		quantizeButton.setButtonText("Quantize!");
 
 
 	}
@@ -364,6 +409,7 @@ public:
 		playMidi.setBounds(10, 50, 100, 30);
 		pauseResume.setBounds(10, 90, 100, 30);
 		playChords.setBounds(10, 120, 100, 30);
+		quantizeButton.setBounds(50, 10, 100, 30);
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
@@ -398,6 +444,7 @@ private:
 	TextButton playMidi;
 	TextButton pauseResume;
 	TextButton playChords;
+	TextButton quantizeButton;
 	
 	
 	
