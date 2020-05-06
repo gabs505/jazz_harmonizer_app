@@ -209,32 +209,61 @@ public:
 		theMidiFile.convertTimestampTicksToSeconds();
 	}
 
-	void playChords() {
-		midiBufferChords->clear();
-		MidiMessage m;
-		int time;
-		for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
-			
+	void setMidiFile() {
+		midiBufferMelody->clear(); //clearing midi buffer if any midi file was already loaded
+		
+		double sampleRate = synth.getSampleRate();// getting sample rate
+		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
+			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
+			for (int i = 0; i < track->getNumEvents(); i++) {
+				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
+				/*if(m.isTempoMetaEvent())
+					DBG("Hello!");*/
+				//m.setNoteNumber(m.getNoteNumber() + 30);
+				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
+				midiBufferMelody->addEvent(m, sampleOffset);
+
+			}
 		}
+		midiBuffer = midiBufferMelody;
+
+		samplesPlayed = 0;
+		midiIsPlaying = true;
 	}
 
-	void setMidiFile() {
-		midiBuffer->clear(); //clearing midi buffer if any midi file was already loaded
+	void playChords() {
+		midiBufferChords->clear(); //clearing midi buffer if any midi file was already loaded
 
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
-				//m.setNoteNumber(m.getNoteNumber() + 30);
+				m.setNoteNumber(m.getNoteNumber() + 5);
+
+				MidiMessage m3;
+				if (m.isTempoMetaEvent()) {
+					DBG(String(m.getTempoSecondsPerQuarterNote()*synth.getSampleRate()));
+				}
+				else if(m.isNoteOn())
+					 m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber()+7,(uint8)100);
+				else if (m.isNoteOff()) 
+					 m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
-				midiBuffer->addEvent(m, sampleOffset);
+				midiBufferChords->addEvent(m, sampleOffset);
+				midiBufferChords->addEvent(m3, sampleOffset+1);
 				
+
 			}
 		}
+		midiBuffer = midiBufferChords;
+
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 	}
+
+	
 
 	void sendAllNotesOff(MidiBuffer& midiMessages)
 	{
@@ -270,6 +299,7 @@ public:
 	}
 
 	ScopedPointer<MidiBuffer> midiBuffer = new MidiBuffer();
+	ScopedPointer<MidiBuffer> midiBufferMelody = new MidiBuffer();
 	ScopedPointer<MidiBuffer> midiBufferChords = new MidiBuffer();
 	int samplesPlayed;
 	bool midiIsPlaying = false;
@@ -280,6 +310,8 @@ private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
 	MidiFile theMidiFile;
+
+	int quarterNoteLengthInSamples;
 	
 };
 
