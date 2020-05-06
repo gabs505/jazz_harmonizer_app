@@ -173,31 +173,32 @@ public:
 		bufferToFill.clearActiveBufferRegion();
 
 		MidiBuffer incomingMidi;
-		//MidiMessage m;
-		/*auto m = MidiMessage::noteOn(10, 90, (uint8)100);
-		m.setTimeStamp(Time::getMillisecondCounterHiRes() * 0.001);
-		incomingMidi.addEvent(m,0);*/
-		     
-		/*if(!incomingMidi.isEmpty()){*/
-			
-			//synth.renderNextBlock(*bufferToFill.buffer, incomingMidi,
-			//	0, 2); // [5]
-			//incomingMidi.clear();
-		//}
+		MidiMessage m;
+		int time;
+		
 		if (midiIsPlaying) {
 			int sampleDeltaToAdd = -samplesPlayed;
-			incomingMidi.addEvents(*midiBuffer, samplesPlayed, bufferToFill.numSamples, sampleDeltaToAdd);
+			for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
+				if (time >= samplesPlayed && time <= samplesPlayed + bufferToFill.numSamples) {
+					incomingMidi.addEvent(m, time);
+					currentSample = time;
+				}
+					
+				
+			}
+			//incomingMidi.addEvents(*midiBuffer, samplesPlayed, bufferToFill.numSamples, sampleDeltaToAdd); //adding all messages at once
 			samplesPlayed += bufferToFill.numSamples;
 		}
-
+		else {
+			sendAllNotesOff(incomingMidi);
+		}
+		bufferLength = bufferToFill.numSamples;
 		keyboardState.processNextMidiBuffer(incomingMidi, bufferToFill.startSample,
 			bufferToFill.numSamples, true);
 		synth.renderNextBlock(*bufferToFill.buffer, incomingMidi,
-			bufferToFill.startSample, bufferToFill.numSamples); // [5]
+			bufferToFill.startSample, bufferToFill.numSamples);
 
-
-		
-		
+	
 	}
 
 	void loadMidi(File fileMIDI) {
@@ -208,25 +209,73 @@ public:
 		theMidiFile.convertTimestampTicksToSeconds();
 	}
 
-	void setMidiFile() {
-		midiBuffer->clear();
+	void playChords() {
+		midiBufferChords->clear();
+		MidiMessage m;
+		int time;
+		for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
+			
+		}
+	}
 
-		double sampleRate = synth.getSampleRate(); // <-- tx MatKat
-		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {
-			const MidiMessageSequence* track = theMidiFile.getTrack(t);
+	void setMidiFile() {
+		midiBuffer->clear(); //clearing midi buffer if any midi file was already loaded
+
+		double sampleRate = synth.getSampleRate();// getting sample rate
+		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
+			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
-				MidiMessage& m = track->getEventPointer(i)->message;
+				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
+				//m.setNoteNumber(m.getNoteNumber() + 30);
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 				midiBuffer->addEvent(m, sampleOffset);
+				
 			}
 		}
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 	}
 
+	void sendAllNotesOff(MidiBuffer& midiMessages)
+	{
+		for (auto i = 1; i <= 16; i++)
+		{
+			midiMessages.addEvent(MidiMessage::allNotesOff(i), 0);
+			midiMessages.addEvent(MidiMessage::allSoundOff(i), 0);
+			midiMessages.addEvent(MidiMessage::allControllersOff(i), 0);
+		}
+
+		midiIsPlaying = false;
+	}
+
+	void pauseResumePlayback(){
+
+		/*sendAllNotesOff(*midiBuffer);*/
+
+		if (midiIsPaused) {
+			midiIsPlaying = true;
+			midiIsPaused = false;
+		}
+			
+		else {
+			midiIsPlaying = false;
+			midiIsPaused = true;
+		}
+		
+			
+
+		
+		
+
+	}
+
 	ScopedPointer<MidiBuffer> midiBuffer = new MidiBuffer();
+	ScopedPointer<MidiBuffer> midiBufferChords = new MidiBuffer();
 	int samplesPlayed;
 	bool midiIsPlaying = false;
+	bool midiIsPaused = false;
+	int bufferLength;
+	int currentSample;
 private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
@@ -243,7 +292,7 @@ public:
 		: synthAudioSource(keyboardState),
 		keyboardComponent(keyboardState, MidiKeyboardComponent::horizontalKeyboard)
 	{
-		//addAndMakeVisible(keyboardComponent);
+		
 		setAudioChannels(0, 2);
 
 		setSize(600, 160);
@@ -259,6 +308,16 @@ public:
 		addAndMakeVisible(playMidi);
 		playMidi.setButtonText("Play MIDI");
 		playMidi.onClick = [this] {synthAudioSource.setMidiFile(); };
+
+		addAndMakeVisible(pauseResume);
+		pauseResume.setButtonText("Play/Pause");
+		pauseResume.onClick = [this] {synthAudioSource.pauseResumePlayback(); };
+
+		addAndMakeVisible(playChords);
+		playChords.onClick = [this] {synthAudioSource.playChords(); };
+		playChords.setButtonText("Play Chords");
+
+
 	}
 
 	~MainContentComponent() override
@@ -268,9 +327,11 @@ public:
 
 	void resized() override
 	{
-		//keyboardComponent.setBounds(10, 10, getWidth() - 20, getHeight() - 20);
+		
 		button.setBounds(10, 10, 100, 30);
 		playMidi.setBounds(10, 50, 100, 30);
+		pauseResume.setBounds(10, 90, 100, 30);
+		playChords.setBounds(10, 120, 100, 30);
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
@@ -288,18 +349,7 @@ public:
 		synthAudioSource.releaseResources();
 	}
 
-	//------------------------------------------
-	//void createNoteOn(int noteNumber) {
-	//	//keyboardState.noteOn(10, noteNumber, 0.8);
-	//	
-	//	auto m = MidiMessage::noteOn(10, 90, (uint8)100);
-	//	m.setTimeStamp(Time::getMillisecondCounterHiRes() * 0.001);
-	//	synthAudioSource.incomingMidi.addEvent(m,0);
 
-	//	auto mOff = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber(), m.getVelocity());
-	//	mOff.setTimeStamp(m.getTimeStamp()+ 10);
-	//	synthAudioSource.incomingMidi.addEvent(mOff,0);
-	//}
 
 private:
 	void timerCallback() override
@@ -314,7 +364,9 @@ private:
 	MidiKeyboardComponent keyboardComponent;
 	TextButton button;
 	TextButton playMidi;
-	//AudioSourceChannelInfo bufferToFill;
+	TextButton pauseResume;
+	TextButton playChords;
+	
 	
 	
 
