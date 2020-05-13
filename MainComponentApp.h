@@ -47,6 +47,7 @@
 
 #pragma once
 #include <math.h>
+#include "ChordCreator.h"
 
 //==============================================================================
 struct SineWaveSound : public SynthesiserSound
@@ -228,10 +229,11 @@ public:
 			}
 		}
 		midiBuffer = midiBufferMelody;
+		//=============================
+		//chordCreator.setMelodyNotes(midiBuffer); //creating a set of melody notes
+		//chordCreator.checkScaleMatches();
 
-		if (midiBuffer->isEmpty()) {
-			DBG("Hi!");
-		}
+		
 
 	
 	}
@@ -243,34 +245,55 @@ public:
 		midiIsPlaying = true;
 	}
 
+	
+
 	void playChords() {
 		midiBufferChords->clear(); //clearing midi buffer if any midi file was already loaded
-
+		
 		double sampleRate = synth.getSampleRate();// getting sample rate
+		int x; int y;
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
-				m.setNoteNumber(m.getNoteNumber());
+				MidiMessage m3;
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 
-				MidiMessage m3;
-				if (m.isTempoMetaEvent()) {
-					quarterNoteLengthInSamples=round(m.getTempoSecondsPerQuarterNote()*synth.getSampleRate());
-				}
-				/*if (sampleOffset>=) {
-					if (m.isNoteOn())
-						m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
-					else if (m.isNoteOff())
-						m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
-				}*/
 				
+			if (m.isTempoMetaEvent()) {
+				quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
+			}
+			else if (quarterNoteLengthInSamples) {
+				if (m.isNoteOn()) {
+					
+					sampleOffset = alignNoteToGrid(m, sampleOffset);
+					m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+					
+					
+					if (sampleOffset > quarterNoteLengthInSamples) {
+						x = sampleOffset;
+						y = quarterNoteLengthInSamples;
+					}
+					else {
+						x = quarterNoteLengthInSamples;
+						y = sampleOffset;
+					}
 
-				
+					//DBG(String(sampleOffset % quarterNoteLengthInSamples));
+					if(y==0)
+						midiBufferChords->addEvent(m3, sampleOffset + 1);
+					else if (x%y<=sixteenthNoteLengthInSamples)
+						midiBufferChords->addEvent(m3, sampleOffset + 1);
+				}
+					
+				else if (m.isNoteOff()) {
+					m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+					midiBufferChords->addEvent(m3, sampleOffset + 1);
+				}
 				midiBufferChords->addEvent(m, sampleOffset);
-				midiBufferChords->addEvent(m3, sampleOffset+1);
-				
+					
+			}
 
 			}
 		}
@@ -280,33 +303,36 @@ public:
 		midiIsPlaying = true;
 	}
 
-	void quantize() {
-		MidiMessage m; 
-		int time; 
-		ScopedPointer<MidiBuffer> buffer = new MidiBuffer();
-		int sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples/4);
-		/*DBG(String(quarterNoteLengthInSamples));
-		DBG(String(sixteenthNoteLengthInSamples%512));*/
-		for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
-			//buffer->addEvent(m, time);
-			if (time == 0 ) {
-				buffer->addEvent(m, time);
+	int alignNoteToGrid(MidiMessage m,int sampleOffset) {
+		sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples / 4);
+		if (sampleOffset == 0||m.isNoteOff()) {
+			return sampleOffset;
+		}
+		else if (m.isNoteOn()) {
+			int x; int y;
+			if (sampleOffset > sixteenthNoteLengthInSamples) {
+				x = sampleOffset; int y = sixteenthNoteLengthInSamples;
 			}
 			else {
-				if (time % sixteenthNoteLengthInSamples == 0) {
-					buffer->addEvent(m, time);
-
-				}
-				else {
-					buffer->addEvent(m, floor(time - time % sixteenthNoteLengthInSamples));
-					DBG(String(floor(time - time % sixteenthNoteLengthInSamples)));
-				}
+				x = sixteenthNoteLengthInSamples; y = sampleOffset;
+			}
+			if (x % y == 0) {
+				return sampleOffset;
 
 			}
-			
+			else {
+				if(x%y<round(sixteenthNoteLengthInSamples/2))
+					return sampleOffset=floor(sampleOffset -x % y);
+				else
+					return sampleOffset = floor(sampleOffset + sampleOffset % sixteenthNoteLengthInSamples- sixteenthNoteLengthInSamples );
+				
+			}
+
 		}
-		midiBuffer=buffer;
+
+
 	}
+
 
 	
 
@@ -346,12 +372,15 @@ public:
 	bool midiIsPaused = false;
 	int bufferLength;
 	int currentSample;
+	int sixteenthNoteLengthInSamples;
 private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
 	MidiFile theMidiFile;
 
 	int quarterNoteLengthInSamples;
+
+	ChordCreator chordCreator;
 	
 };
 
@@ -391,7 +420,7 @@ public:
 		playChords.setButtonText("Play Chords");
 
 		addAndMakeVisible(quantizeButton);
-		quantizeButton.onClick = [this] {synthAudioSource.quantize(); };
+		//quantizeButton.onClick = [this] {synthAudioSource.quantize(); };
 		quantizeButton.setButtonText("Quantize!");
 
 
@@ -445,6 +474,8 @@ private:
 	TextButton pauseResume;
 	TextButton playChords;
 	TextButton quantizeButton;
+
+	ChordCreator chordCreator;
 	
 	
 	
