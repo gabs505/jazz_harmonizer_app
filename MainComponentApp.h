@@ -178,11 +178,12 @@ public:
 		MidiMessage m;
 		int time;
 
-
+		//midiBuffer = currentMidiBuffer;
 
 		if (midiIsPlaying) {
 			int sampleDeltaToAdd = -samplesPlayed;
-			for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
+			
+			for (MidiBuffer::Iterator i(*currentMidiBuffer); i.getNextEvent(m, time);) {
 				if (time >= samplesPlayed && time <= samplesPlayed + bufferToFill.numSamples) {
 					incomingMidi.addEvent(m, time);
 					currentSample = time;
@@ -229,9 +230,9 @@ public:
 
 			}
 		}
-		midiBuffer = midiBufferMelody;
+		/*currentMidiBuffer = midiBufferMelody;*/
 		//=============================
-		chordCreator.createChords(midiBuffer);
+		//chordCreator.createChords(midiBuffer);
 
 		
 
@@ -239,18 +240,15 @@ public:
 	}
 
 	void playMelody() {
-		counter = 0;
+		*currentMidiBuffer = *midiBufferMelody;
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 	}
 
 	void playChords() {
-		if (counter == 0)
-			addChords();
-		else {
+		*currentMidiBuffer = *midiBufferChords;
 			samplesPlayed = 0;
 			midiIsPlaying = true;
-		}
 		counter++;
 
 	}
@@ -313,10 +311,7 @@ public:
 
 			}
 		}
-		midiBuffer = midiBufferChords;
-
-		samplesPlayed = 0;
-		midiIsPlaying = true;
+		
 	}
 
 	int alignNoteToGrid(MidiMessage m,int sampleOffset) {
@@ -384,6 +379,7 @@ public:
 	
 
 	ScopedPointer<MidiBuffer> midiBuffer = new MidiBuffer();
+	ScopedPointer<MidiBuffer> currentMidiBuffer = new MidiBuffer();
 	ScopedPointer<MidiBuffer> midiBufferMelody = new MidiBuffer();
 	ScopedPointer<MidiBuffer> midiBufferChords = new MidiBuffer();
 	int samplesPlayed;
@@ -439,6 +435,10 @@ public:
 		playChords.onClick = [this] {synthAudioSource.playChords(); };
 		playChords.setButtonText("Play Chords");
 
+		addAndMakeVisible(addChordsButton);
+		addChordsButton.onClick = [this] {synthAudioSource.addChords(); };
+		addChordsButton.setButtonText("Add Chords");
+
 		//addAndMakeVisible(quantizeButton);
 		//quantizeButton.onClick = [this] {synthAudioSource.quantize(); };
 		//quantizeButton.setButtonText("Quantize!");
@@ -458,7 +458,7 @@ public:
 		playMidi.setBounds(10, 50, 100, 30);
 		pauseResume.setBounds(10, 90, 100, 30);
 		playChords.setBounds(10, 120, 100, 30);
-		//quantizeButton.setBounds(50, 10, 100, 30);
+		addChordsButton.setBounds(150, 10, 100, 30);
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
@@ -493,6 +493,7 @@ private:
 	TextButton playMidi;
 	TextButton pauseResume;
 	TextButton playChords;
+	TextButton addChordsButton;
 	TextButton quantizeButton;
 
 	ChordCreator chordCreator;
