@@ -178,6 +178,8 @@ public:
 		MidiMessage m;
 		int time;
 
+
+
 		if (midiIsPlaying) {
 			int sampleDeltaToAdd = -samplesPlayed;
 			for (MidiBuffer::Iterator i(*midiBuffer); i.getNextEvent(m, time);) {
@@ -222,7 +224,6 @@ public:
 				if (m.isTempoMetaEvent()) {
 					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
 				}
-				//m.setNoteNumber(m.getNoteNumber() + 30);
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 				midiBufferMelody->addEvent(m, sampleOffset);
 
@@ -230,8 +231,7 @@ public:
 		}
 		midiBuffer = midiBufferMelody;
 		//=============================
-		//chordCreator.setMelodyNotes(midiBuffer); //creating a set of melody notes
-		//chordCreator.checkScaleMatches();
+		chordCreator.createChords(midiBuffer);
 
 		
 
@@ -239,19 +239,28 @@ public:
 	}
 
 	void playMelody() {
-
-
+		counter = 0;
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 	}
 
-	
-
 	void playChords() {
+		if (counter == 0)
+			addChords();
+		else {
+			samplesPlayed = 0;
+			midiIsPlaying = true;
+		}
+		counter++;
+
+	}
+
+	void addChords() {
 		midiBufferChords->clear(); //clearing midi buffer if any midi file was already loaded
 		
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		int x; int y;
+		int newSampleOffset;
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
@@ -267,23 +276,30 @@ public:
 			else if (quarterNoteLengthInSamples) {
 				if (m.isNoteOn()) {
 					
-					sampleOffset = alignNoteToGrid(m, sampleOffset);
+					newSampleOffset = alignNoteToGrid(m, sampleOffset);
 					m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
 					
 					
-					if (sampleOffset > quarterNoteLengthInSamples) {
-						x = sampleOffset;
+					if (newSampleOffset > quarterNoteLengthInSamples) {
+						x = newSampleOffset;
 						y = quarterNoteLengthInSamples;
 					}
 					else {
 						x = quarterNoteLengthInSamples;
-						y = sampleOffset;
+						y = newSampleOffset;
 					}
 
 					//DBG(String(sampleOffset % quarterNoteLengthInSamples));
-					if(y==0)
+					if (y == 0)
 						midiBufferChords->addEvent(m3, sampleOffset + 1);
-					else if (x%y<=sixteenthNoteLengthInSamples)
+					/*else {
+						DBG("Quarter note length");
+						DBG(quarterNoteLengthInSamples);
+						DBG("Modulo");
+						DBG(x % y);
+					}*/
+						
+					else if (x%y<=sixteenthNoteLengthInSamples/2)
 						midiBufferChords->addEvent(m3, sampleOffset + 1);
 				}
 					
@@ -309,6 +325,7 @@ public:
 			return sampleOffset;
 		}
 		else if (m.isNoteOn()) {
+			//making sure that first number in modulo operation is greater then second
 			int x; int y;
 			if (sampleOffset > sixteenthNoteLengthInSamples) {
 				x = sampleOffset; int y = sixteenthNoteLengthInSamples;
@@ -316,11 +333,13 @@ public:
 			else {
 				x = sixteenthNoteLengthInSamples; y = sampleOffset;
 			}
-			if (x % y == 0) {
+			//==========================================================
+			
+			if (x % y == 0) {//note is aligned to grid
 				return sampleOffset;
 
 			}
-			else {
+			else {//aligning note to grid
 				if(x%y<round(sixteenthNoteLengthInSamples/2))
 					return sampleOffset=floor(sampleOffset -x % y);
 				else
@@ -377,6 +396,7 @@ private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
 	MidiFile theMidiFile;
+	int counter = 0;
 
 	int quarterNoteLengthInSamples;
 
@@ -419,9 +439,9 @@ public:
 		playChords.onClick = [this] {synthAudioSource.playChords(); };
 		playChords.setButtonText("Play Chords");
 
-		addAndMakeVisible(quantizeButton);
+		//addAndMakeVisible(quantizeButton);
 		//quantizeButton.onClick = [this] {synthAudioSource.quantize(); };
-		quantizeButton.setButtonText("Quantize!");
+		//quantizeButton.setButtonText("Quantize!");
 
 
 	}
@@ -438,7 +458,7 @@ public:
 		playMidi.setBounds(10, 50, 100, 30);
 		pauseResume.setBounds(10, 90, 100, 30);
 		playChords.setBounds(10, 120, 100, 30);
-		quantizeButton.setBounds(50, 10, 100, 30);
+		//quantizeButton.setBounds(50, 10, 100, 30);
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
