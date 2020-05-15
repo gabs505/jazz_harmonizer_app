@@ -225,18 +225,36 @@ public:
 				if (m.isTempoMetaEvent()) {
 					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
 				}
+
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
-				midiBufferMelody->addEvent(m, sampleOffset);
+				int newSampleOffset= alignNoteToGrid(m, sampleOffset);
+				midiBufferMelody->addEvent(m, newSampleOffset);
+				createMelodyBufferToProcess(m, newSampleOffset);
 
 			}
 		}
-		/*currentMidiBuffer = midiBufferMelody;*/
-		//=============================
-		//chordCreator.createChords(midiBuffer);
 
-		
+	}
 
-	
+	void createMelodyBufferToProcess(MidiMessage m,int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
+		int x; int y;
+		if (m.isNoteOn()) {
+
+			if (sampleOffset > quarterNoteLengthInSamples) {
+				x = sampleOffset;
+				y = quarterNoteLengthInSamples;
+			}
+			else {
+				x = quarterNoteLengthInSamples;
+				y = sampleOffset;
+			}
+
+			if (y == 0 || (x % y <= sixteenthNoteLengthInSamples / 2 && y != 0)) {
+				melodyBufferToProcess->addEvent(m, sampleOffset);
+			}
+		}
+		else if(m.isNoteOff())
+			melodyBufferToProcess->addEvent(m, sampleOffset);
 	}
 
 	void playMelody() {
@@ -247,67 +265,77 @@ public:
 
 	void playChords() {
 		*currentMidiBuffer = *midiBufferChords;
-			samplesPlayed = 0;
-			midiIsPlaying = true;
-		counter++;
+		//*currentMidiBuffer = *melodyBufferToProcess;
+		samplesPlayed = 0;
+		midiIsPlaying = true;
+		
 
 	}
 
+	void addChordProgression() {
+		MidiMessage m; int time;
+		chordCreator.matchScale(midiBufferMelody);//matching scale to whole melody
+		chordCreator.prepareMelodyToProcess(melodyBufferToProcess);
+		
+
+		chordCreator.createChords(melodyBufferToProcess, midiBufferChords);
+		/*for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
+			//chordCreator.createChords(melodyBufferToProcess,midiBufferChords);
+		}*/
+	}
 	void addChords() {
 		midiBufferChords->clear(); //clearing midi buffer if any midi file was already loaded
 		
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		int x; int y;
 		int newSampleOffset;
+		
+
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
 			for (int i = 0; i < track->getNumEvents(); i++) {
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
-				MidiMessage m3;
+				MidiMessage m3;//third
+				MidiMessage m5;//fifth
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 
 				
-			if (m.isTempoMetaEvent()) {
-				quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
-			}
-			else if (quarterNoteLengthInSamples) {
-				if (m.isNoteOn()) {
+				if (m.isTempoMetaEvent()) { //getting quarter note length from tempo meta event
+					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
+				}
+				else if (quarterNoteLengthInSamples) {
+					if (m.isNoteOn()) {
 					
-					newSampleOffset = alignNoteToGrid(m, sampleOffset);
-					m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
-					
-					
-					if (newSampleOffset > quarterNoteLengthInSamples) {
-						x = newSampleOffset;
-						y = quarterNoteLengthInSamples;
-					}
-					else {
-						x = quarterNoteLengthInSamples;
-						y = newSampleOffset;
-					}
-
-					//DBG(String(sampleOffset % quarterNoteLengthInSamples));
-					if (y == 0)
-						midiBufferChords->addEvent(m3, sampleOffset + 1);
-					/*else {
-						DBG("Quarter note length");
-						DBG(quarterNoteLengthInSamples);
-						DBG("Modulo");
-						DBG(x % y);
-					}*/
+						newSampleOffset = alignNoteToGrid(m, sampleOffset);
 						
-					else if (x%y<=sixteenthNoteLengthInSamples/2)
+					
+					
+						if (newSampleOffset > quarterNoteLengthInSamples) {
+							x = newSampleOffset;
+							y = quarterNoteLengthInSamples;
+						}
+						else {
+							x = quarterNoteLengthInSamples;
+							y = newSampleOffset;
+						}
+
+						if (y == 0 || (x % y <= sixteenthNoteLengthInSamples / 2 && y != 0)) {
+							m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
+							midiBufferChords->addEvent(m3, sampleOffset + 1);
+						}
+
+							
+						
+					}
+					
+					else if (m.isNoteOff()) {
+						m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
 						midiBufferChords->addEvent(m3, sampleOffset + 1);
-				}
+					}
+					midiBufferChords->addEvent(m, sampleOffset);
 					
-				else if (m.isNoteOff()) {
-					m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
-					midiBufferChords->addEvent(m3, sampleOffset + 1);
 				}
-				midiBufferChords->addEvent(m, sampleOffset);
-					
-			}
 
 			}
 		}
@@ -378,10 +406,15 @@ public:
 
 	
 
-	ScopedPointer<MidiBuffer> midiBuffer = new MidiBuffer();
-	ScopedPointer<MidiBuffer> currentMidiBuffer = new MidiBuffer();
+	
+	/*ScopedPointer<MidiBuffer> currentMidiBuffer = new MidiBuffer();
 	ScopedPointer<MidiBuffer> midiBufferMelody = new MidiBuffer();
-	ScopedPointer<MidiBuffer> midiBufferChords = new MidiBuffer();
+	ScopedPointer<MidiBuffer> melodyBufferToProcess = new MidiBuffer();
+	ScopedPointer<MidiBuffer> midiBufferChords = new MidiBuffer();*/
+	MidiBuffer* currentMidiBuffer = new MidiBuffer();
+	MidiBuffer*midiBufferMelody = new MidiBuffer();
+	MidiBuffer* melodyBufferToProcess = new MidiBuffer();
+	MidiBuffer* midiBufferChords = new MidiBuffer();
 	int samplesPlayed;
 	bool midiIsPlaying = false;
 	bool midiIsPaused = false;
@@ -436,7 +469,7 @@ public:
 		playChords.setButtonText("Play Chords");
 
 		addAndMakeVisible(addChordsButton);
-		addChordsButton.onClick = [this] {synthAudioSource.addChords(); };
+		addChordsButton.onClick = [this] {synthAudioSource.addChordProgression(); };
 		addChordsButton.setButtonText("Add Chords");
 
 		//addAndMakeVisible(quantizeButton);
