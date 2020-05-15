@@ -4,10 +4,13 @@
 #include <vector>
 #include <set>
 
+
+
 class Scales {
 public:
 	Scales() {
 		createScales();
+		setNoteNumberToNoteNameMap();
 	}
 
 	void createScales() {
@@ -32,6 +35,21 @@ public:
 		scalesIndexToName[3] = "A";
 		scalesIndexToName[4] = "E";
 		scalesIndexToName[5] = "B";
+	}
+
+	void setNoteNumberToNoteNameMap() {
+		noteNumberToNoteNameMap[60] = "C";
+		noteNumberToNoteNameMap[61] = "C#";
+		noteNumberToNoteNameMap[62] = "D";
+		noteNumberToNoteNameMap[63] = "D#";
+		noteNumberToNoteNameMap[64] = "E";
+		noteNumberToNoteNameMap[65] = "F";
+		noteNumberToNoteNameMap[66] = "F#";
+		noteNumberToNoteNameMap[67] = "G";
+		noteNumberToNoteNameMap[68] = "G#";
+		noteNumberToNoteNameMap[69] = "A";
+		noteNumberToNoteNameMap[70] = "A#";
+		noteNumberToNoteNameMap[71] = "B";
 	}
 
 	std::vector<int> countMatches(std::set<int>melodyNotes) {//returns how many common notes has melody with each scale
@@ -72,6 +90,7 @@ public:
 	std::map<std::string, int> scalesMatches; //iloœæ dŸwiêków wspólnych miêdzy melodi¹ a kolejnymi skalami
 	std::string matchedScaleName;
 	int matchedScaleIndex;
+	std::map<int, std::string> noteNumberToNoteNameMap;
 };
 
 class ChordCreator {
@@ -164,10 +183,11 @@ public:
 				add++;*/
 				for (auto i = 1; i <= 16; i++)
 				{
-					midiBufferChords->addEvent(MidiMessage::allNotesOff(i), 0);
-					midiBufferChords->addEvent(MidiMessage::allSoundOff(i), 0);
-					midiBufferChords->addEvent(MidiMessage::allControllersOff(i), 0);
+					midiBufferChords->addEvent(MidiMessage::allNotesOff(i), time + add);
+					midiBufferChords->addEvent(MidiMessage::allSoundOff(i), time + add);
+					midiBufferChords->addEvent(MidiMessage::allControllersOff(i), time + add);
 				}
+				add++;
 
 			}
 		}

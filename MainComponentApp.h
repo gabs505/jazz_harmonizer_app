@@ -178,8 +178,6 @@ public:
 		MidiMessage m;
 		int time;
 
-		//midiBuffer = currentMidiBuffer;
-
 		if (midiIsPlaying) {
 			int sampleDeltaToAdd = -samplesPlayed;
 			
@@ -224,6 +222,7 @@ public:
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
 				if (m.isTempoMetaEvent()) {
 					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
+					DBG(String(quarterNoteLengthInSamples));
 				}
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
@@ -265,11 +264,23 @@ public:
 
 	void playChords() {
 		*currentMidiBuffer = *midiBufferChords;
-		//*currentMidiBuffer = *melodyBufferToProcess;
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 		
 
+	}
+
+	void playChordsAndMelody() {
+		MidiMessage m; int time;
+		currentMidiBuffer->clear();
+		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
+			currentMidiBuffer->addEvent(m, time);
+		}
+		for (MidiBuffer::Iterator i(*midiBufferChords); i.getNextEvent(m, time);) {
+			currentMidiBuffer->addEvent(m, time);
+		}
+		samplesPlayed = 0;
+		midiIsPlaying = true;
 	}
 
 	void addChordProgression() {
@@ -277,11 +288,9 @@ public:
 		chordCreator.matchScale(midiBufferMelody);//matching scale to whole melody
 		chordCreator.prepareMelodyToProcess(melodyBufferToProcess);
 		
-
 		chordCreator.createChords(melodyBufferToProcess, midiBufferChords);
-		/*for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
-			//chordCreator.createChords(melodyBufferToProcess,midiBufferChords);
-		}*/
+
+		
 	}
 	void addChords() {
 		midiBufferChords->clear(); //clearing midi buffer if any midi file was already loaded
@@ -344,34 +353,44 @@ public:
 
 	int alignNoteToGrid(MidiMessage m,int sampleOffset) {
 		sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples / 4);
+		
 		if (sampleOffset == 0||m.isNoteOff()) {
+
 			return sampleOffset;
 		}
 		else if (m.isNoteOn()) {
-			//making sure that first number in modulo operation is greater then second
-			int x; int y;
+			
 			if (sampleOffset > sixteenthNoteLengthInSamples) {
-				x = sampleOffset; int y = sixteenthNoteLengthInSamples;
+				if (sampleOffset % sixteenthNoteLengthInSamples == 0) {//note is aligned to grid
+					return sampleOffset;
+
+				}
+				else {//aligning note to grid
+					sampleOffset = sampleOffset - sampleOffset % sixteenthNoteLengthInSamples;
+					return sampleOffset;
+					if(sampleOffset % sixteenthNoteLengthInSamples <round(sixteenthNoteLengthInSamples/2))
+						return sampleOffset=floor(sampleOffset - (sampleOffset % sixteenthNoteLengthInSamples));
+					else
+						return sampleOffset = floor(sampleOffset + sixteenthNoteLengthInSamples -( sampleOffset % sixteenthNoteLengthInSamples));
+					
+				}
 			}
 			else {
-				x = sixteenthNoteLengthInSamples; y = sampleOffset;
-			}
-			//==========================================================
-			
-			if (x % y == 0) {//note is aligned to grid
-				return sampleOffset;
+				if (sixteenthNoteLengthInSamples % sampleOffset== 0) {//note is aligned to grid
+					return sampleOffset;
 
+				}
+				else {//aligning note to grid
+					sampleOffset = sampleOffset - sixteenthNoteLengthInSamples % sampleOffset;
+					return sampleOffset;
+					if(sixteenthNoteLengthInSamples % sampleOffset <round(sixteenthNoteLengthInSamples/2))
+						return sampleOffset=floor(sampleOffset - (sixteenthNoteLengthInSamples % sampleOffset));
+					else
+						return sampleOffset = sampleOffset + sixteenthNoteLengthInSamples- (sixteenthNoteLengthInSamples % sampleOffset);
+					
+				}
 			}
-			else {//aligning note to grid
-				if(x%y<round(sixteenthNoteLengthInSamples/2))
-					return sampleOffset=floor(sampleOffset -x % y);
-				else
-					return sampleOffset = floor(sampleOffset + sampleOffset % sixteenthNoteLengthInSamples- sixteenthNoteLengthInSamples );
-				
-			}
-
 		}
-
 
 	}
 
@@ -407,10 +426,6 @@ public:
 	
 
 	
-	/*ScopedPointer<MidiBuffer> currentMidiBuffer = new MidiBuffer();
-	ScopedPointer<MidiBuffer> midiBufferMelody = new MidiBuffer();
-	ScopedPointer<MidiBuffer> melodyBufferToProcess = new MidiBuffer();
-	ScopedPointer<MidiBuffer> midiBufferChords = new MidiBuffer();*/
 	MidiBuffer* currentMidiBuffer = new MidiBuffer();
 	MidiBuffer*midiBufferMelody = new MidiBuffer();
 	MidiBuffer* melodyBufferToProcess = new MidiBuffer();
@@ -472,9 +487,11 @@ public:
 		addChordsButton.onClick = [this] {synthAudioSource.addChordProgression(); };
 		addChordsButton.setButtonText("Add Chords");
 
-		//addAndMakeVisible(quantizeButton);
-		//quantizeButton.onClick = [this] {synthAudioSource.quantize(); };
-		//quantizeButton.setButtonText("Quantize!");
+		
+		addAndMakeVisible(playChordsAndMelodyButton);
+		playChordsAndMelodyButton.onClick = [this] {synthAudioSource.playChordsAndMelody(); };
+		playChordsAndMelodyButton.setButtonText("Play all");
+		
 
 
 	}
@@ -492,6 +509,7 @@ public:
 		pauseResume.setBounds(10, 90, 100, 30);
 		playChords.setBounds(10, 120, 100, 30);
 		addChordsButton.setBounds(150, 10, 100, 30);
+		playChordsAndMelodyButton.setBounds(150, 50, 100, 30);
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
@@ -527,7 +545,7 @@ private:
 	TextButton pauseResume;
 	TextButton playChords;
 	TextButton addChordsButton;
-	TextButton quantizeButton;
+	TextButton playChordsAndMelodyButton;
 
 	ChordCreator chordCreator;
 	
