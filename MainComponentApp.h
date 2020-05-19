@@ -227,11 +227,6 @@ public:
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 				int newSampleOffset = sampleOffset;
-				/*DBG("++++++++");
-				DBG(String((float)sampleOffset / (float)quarterNoteLengthInSamples));
-				DBG("modulo:");
-				DBG(String(sampleOffset % quarterNoteLengthInSamples));*/
-				//int newSampleOffset= alignNoteToGrid(m, sampleOffset);
 				midiBufferMelody->addEvent(m, newSampleOffset);
 				createMelodyBufferToProcess(m, newSampleOffset);
 

@@ -74,8 +74,8 @@ public:
 
 	}
 
-	void findScaleMatch(std::set<int>melodyNotes) {//matches scale to melody
-		std::vector<int>matchCountsVector = countMatches(melodyNotes);//vector with number of matches for each scale
+	void findScaleMatch(std::set<int>melodyNotesSet, std::vector<int>melodyNotesVector) {//matches scale to melody
+		std::vector<int>matchCountsVector = countMatches(melodyNotesSet);//vector with number of matches for each scale
 		std::vector<int>maxCounts;//vector with indexes of scales that have max number of counts
 		int maxIndex = std::max_element(matchCountsVector.begin(), matchCountsVector.end()) - matchCountsVector.begin();
 		int counter = 0;
@@ -84,13 +84,25 @@ public:
 				maxCounts.push_back(matchCountsVector[counter]);
 			counter++;
 		}
-
+		DBG("matchCounts vector size:");
+		DBG(maxCounts.size());
 		if (maxCounts.size() == 1) {
 			matchedScaleIndex = maxCounts[0];
 			matchedScaleName = scalesIndexToName[matchedScaleIndex];
 		}
 		else {
+			int idx;
+			for (auto it = maxCounts.begin(); it != maxCounts.end(); it++) {
+				DBG("scalesMap[*it][0]");
+				DBG(String(scalesMap[*it][0]));
+				DBG("first note in melody:");
+				DBG(melodyNotesVector[0]);
+				if (scalesMap[*it][0]==melodyNotesVector[0]) {
+					matchedScaleIndex = *it;
+					matchedScaleName = scalesIndexToName[matchedScaleIndex];
 
+				}
+			}
 		}
 		/*matchedScaleIndex = maxCountIndex;
 		matchedScaleName = scalesIndexToName[maxCountIndex];*/
@@ -98,7 +110,7 @@ public:
 		
 	}
 
-	//std::map<std::string, std::vector < int >> scalesMap;
+	
 	std::map<int, std::vector < int >> scalesMap;
 	std::map<int, std::string> scalesIndexToName;
 	std::map<std::string, int> scalesMatches; //iloœæ dŸwiêków wspólnych miêdzy melodi¹ a kolejnymi skalami
@@ -168,7 +180,7 @@ public:
 	void matchScale(MidiBuffer* melody) {
 		setMelodyNotes(melody); //creating a set of melody notes
 		transposeMelodyNotes(melodyNotesVector);
-		scales.findScaleMatch(melodyNotesSet);//matching scale to melody
+		scales.findScaleMatch(melodyNotesSet,melodyNotesVector);//matching scale to melody
 	}
 
 	std::vector<int> matchChord(int midiNoteNumber) {//matches chord to melody note
