@@ -165,7 +165,7 @@ public:
 
 	void prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate) override
 	{
-		synth.setCurrentPlaybackSampleRate(sampleRate); // [3]
+	synth.setCurrentPlaybackSampleRate(sampleRate); // [3]
 	}
 
 	void releaseResources() override {}
@@ -180,7 +180,7 @@ public:
 
 		if (midiIsPlaying) {
 			int sampleDeltaToAdd = -samplesPlayed;
-			
+
 			for (MidiBuffer::Iterator i(*currentMidiBuffer); i.getNextEvent(m, time);) {
 				if (time >= samplesPlayed && time <= samplesPlayed + bufferToFill.numSamples) {
 					incomingMidi.addEvent(m, time);
@@ -226,7 +226,12 @@ public:
 				}
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
-				int newSampleOffset= alignNoteToGrid(m, sampleOffset);
+				int newSampleOffset = sampleOffset;
+				/*DBG("++++++++");
+				DBG(String((float)sampleOffset / (float)quarterNoteLengthInSamples));
+				DBG("modulo:");
+				DBG(String(sampleOffset % quarterNoteLengthInSamples));*/
+				//int newSampleOffset= alignNoteToGrid(m, sampleOffset);
 				midiBufferMelody->addEvent(m, newSampleOffset);
 				createMelodyBufferToProcess(m, newSampleOffset);
 
@@ -235,22 +240,34 @@ public:
 
 	}
 
-	void createMelodyBufferToProcess(MidiMessage m,int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
-		int x; int y;
+	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
+		
 		if (m.isNoteOn()) {
 
-			if (sampleOffset > quarterNoteLengthInSamples) {
-				x = sampleOffset;
-				y = quarterNoteLengthInSamples;
+			/*
+			if (quarterNoteLengthInSamples > sampleOffset) {
+				if (sampleOffset == 0 || (quarterNoteLengthInSamples % sampleOffset > (quarterNoteLengthInSamples-sixteenthNoteLengthInSamples)&& sampleOffset != 0)) {
+					melodyBufferToProcess->addEvent(m, sampleOffset);
+
+				}
 			}
 			else {
-				x = quarterNoteLengthInSamples;
-				y = sampleOffset;
-			}
+				/*DBG("Sample offset:");
+				DBG(String(sampleOffset));
+				if (sampleOffset != 0) {
+					DBG("modulo:");
+					DBG(String(sampleOffset % quarterNoteLengthInSamples));
+				if (sampleOffset == 0 || (sampleOffset%quarterNoteLengthInSamples > (quarterNoteLengthInSamples - sixteenthNoteLengthInSamples))) {
+					melodyBufferToProcess->addEvent(m, sampleOffset);
 
-			if (y == 0 || (x % y <= sixteenthNoteLengthInSamples / 2 && y != 0)) {
+					}
+				}
+		*/
+			float division = (float)sampleOffset / (float)quarterNoteLengthInSamples;
+			if (ceil(division)-division<0.1|| abs(floor(division) - division) <0.1|| division ==0){
 				melodyBufferToProcess->addEvent(m, sampleOffset);
 			}
+			
 		}
 		else if(m.isNoteOff())
 			melodyBufferToProcess->addEvent(m, sampleOffset);
@@ -285,10 +302,7 @@ public:
 
 	void addChordProgression() {
 		MidiMessage m; int time;
-		chordCreator.matchScale(midiBufferMelody);//matching scale to whole melody
-		chordCreator.prepareMelodyToProcess(melodyBufferToProcess);
-		
-		chordCreator.createChords(melodyBufferToProcess, midiBufferChords);
+		chordCreator.createChordProgressionOutput(midiBufferMelody,melodyBufferToProcess, midiBufferChords);
 
 		
 	}
@@ -350,8 +364,17 @@ public:
 		}
 		
 	}
-
-	int alignNoteToGrid(MidiMessage m,int sampleOffset) {
+	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
+		sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples / 4);
+		if (m.isNoteOff())
+			return sampleOffset;
+		else if (m.isNoteOn()) {
+			float division = (float)sampleOffset / (float)sixteenthNoteLengthInSamples;
+			return sampleOffset = floor(division) * sixteenthNoteLengthInSamples;
+			
+		}
+	}
+	/*int alignNoteToGrid(MidiMessage m,int sampleOffset) {
 		sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples / 4);
 		
 		if (sampleOffset == 0||m.isNoteOff()) {
@@ -393,7 +416,7 @@ public:
 		}
 
 	}
-
+	*/
 
 	
 
