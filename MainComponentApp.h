@@ -226,9 +226,10 @@ public:
 				}
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
+				//int newSampleOffset = alignNoteToGrid(m, sampleOffset);
 				int newSampleOffset = sampleOffset;
 				midiBufferMelody->addEvent(m, newSampleOffset);
-				createMelodyBufferToProcess(m, newSampleOffset);
+				createMelodyBufferToProcess(m, newSampleOffset);//memory leak-zapis poza zakres
 
 			}
 		}
@@ -238,26 +239,6 @@ public:
 	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
 		
 		if (m.isNoteOn()) {
-
-			/*
-			if (quarterNoteLengthInSamples > sampleOffset) {
-				if (sampleOffset == 0 || (quarterNoteLengthInSamples % sampleOffset > (quarterNoteLengthInSamples-sixteenthNoteLengthInSamples)&& sampleOffset != 0)) {
-					melodyBufferToProcess->addEvent(m, sampleOffset);
-
-				}
-			}
-			else {
-				/*DBG("Sample offset:");
-				DBG(String(sampleOffset));
-				if (sampleOffset != 0) {
-					DBG("modulo:");
-					DBG(String(sampleOffset % quarterNoteLengthInSamples));
-				if (sampleOffset == 0 || (sampleOffset%quarterNoteLengthInSamples > (quarterNoteLengthInSamples - sixteenthNoteLengthInSamples))) {
-					melodyBufferToProcess->addEvent(m, sampleOffset);
-
-					}
-				}
-		*/
 			float division = (float)sampleOffset / (float)quarterNoteLengthInSamples;
 			if (ceil(division)-division<0.1|| abs(floor(division) - division) <0.1|| division ==0){
 				melodyBufferToProcess->addEvent(m, sampleOffset);
@@ -278,8 +259,6 @@ public:
 		*currentMidiBuffer = *midiBufferChords;
 		samplesPlayed = 0;
 		midiIsPlaying = true;
-		
-
 	}
 
 	void playChordsAndMelody() {
@@ -298,120 +277,19 @@ public:
 	void addChordProgression() {
 		MidiMessage m; int time;
 		chordCreator.createChordProgressionOutput(midiBufferMelody,melodyBufferToProcess, midiBufferChords);
-
-		
+	
 	}
-	void addChords() {
-		midiBufferChords->clear(); //clearing midi buffer if any midi file was already loaded
-		
-		double sampleRate = synth.getSampleRate();// getting sample rate
-		int x; int y;
-		int newSampleOffset;
-		
 
-		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
-			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
-			for (int i = 0; i < track->getNumEvents(); i++) {
-				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
-				MidiMessage m3;//third
-				MidiMessage m5;//fifth
-
-				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
-
-				
-				if (m.isTempoMetaEvent()) { //getting quarter note length from tempo meta event
-					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
-				}
-				else if (quarterNoteLengthInSamples) {
-					if (m.isNoteOn()) {
-					
-						newSampleOffset = alignNoteToGrid(m, sampleOffset);
-						
-					
-					
-						if (newSampleOffset > quarterNoteLengthInSamples) {
-							x = newSampleOffset;
-							y = quarterNoteLengthInSamples;
-						}
-						else {
-							x = quarterNoteLengthInSamples;
-							y = newSampleOffset;
-						}
-
-						if (y == 0 || (x % y <= sixteenthNoteLengthInSamples / 2 && y != 0)) {
-							m3 = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
-							midiBufferChords->addEvent(m3, sampleOffset + 1);
-						}
-
-							
-						
-					}
-					
-					else if (m.isNoteOff()) {
-						m3 = MidiMessage::noteOff(m.getChannel(), m.getNoteNumber() + 7, (uint8)100);
-						midiBufferChords->addEvent(m3, sampleOffset + 1);
-					}
-					midiBufferChords->addEvent(m, sampleOffset);
-					
-				}
-
-			}
-		}
-		
-	}
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
-		sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples / 4);
+		sixteenthNoteLengthInSamples = round((float)quarterNoteLengthInSamples / 4.0);
 		if (m.isNoteOff())
 			return sampleOffset;
 		else if (m.isNoteOn()) {
 			float division = (float)sampleOffset / (float)sixteenthNoteLengthInSamples;
-			return sampleOffset = floor(division) * sixteenthNoteLengthInSamples;
+			return sampleOffset = round(division) * sixteenthNoteLengthInSamples;
 			
 		}
 	}
-	/*int alignNoteToGrid(MidiMessage m,int sampleOffset) {
-		sixteenthNoteLengthInSamples = round(quarterNoteLengthInSamples / 4);
-		
-		if (sampleOffset == 0||m.isNoteOff()) {
-
-			return sampleOffset;
-		}
-		else if (m.isNoteOn()) {
-			
-			if (sampleOffset > sixteenthNoteLengthInSamples) {
-				if (sampleOffset % sixteenthNoteLengthInSamples == 0) {//note is aligned to grid
-					return sampleOffset;
-
-				}
-				else {//aligning note to grid
-					sampleOffset = sampleOffset - sampleOffset % sixteenthNoteLengthInSamples;
-					return sampleOffset;
-					if(sampleOffset % sixteenthNoteLengthInSamples <round(sixteenthNoteLengthInSamples/2))
-						return sampleOffset=floor(sampleOffset - (sampleOffset % sixteenthNoteLengthInSamples));
-					else
-						return sampleOffset = floor(sampleOffset + sixteenthNoteLengthInSamples -( sampleOffset % sixteenthNoteLengthInSamples));
-					
-				}
-			}
-			else {
-				if (sixteenthNoteLengthInSamples % sampleOffset== 0) {//note is aligned to grid
-					return sampleOffset;
-
-				}
-				else {//aligning note to grid
-					sampleOffset = sampleOffset - sixteenthNoteLengthInSamples % sampleOffset;
-					return sampleOffset;
-					if(sixteenthNoteLengthInSamples % sampleOffset <round(sixteenthNoteLengthInSamples/2))
-						return sampleOffset=floor(sampleOffset - (sixteenthNoteLengthInSamples % sampleOffset));
-					else
-						return sampleOffset = sampleOffset + sixteenthNoteLengthInSamples- (sixteenthNoteLengthInSamples % sampleOffset);
-					
-				}
-			}
-		}
-
-	}
-	*/
 
 	
 

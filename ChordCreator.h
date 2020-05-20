@@ -4,64 +4,130 @@
 #include <vector>
 #include <set>
 
+std::vector<std::string>sharps = {"C","C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+std::vector<std::string>flats = { "C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B" };
+
+class Scale {
+public:
+	Scale(std::string scaleN, std::string t) {
+		scaleName = scaleN;
+		type = t;
+	}
+
+	std::string scaleName;
+	std::vector<int>notesMidiNumbers;
+	std::vector<std::string>notesNames;
+	std::string mode; //minor or major
+	std::string type;//sharp or flat or none
+	std::vector<std::string>scaleChords;//vector containing chord for each step of scale
+	
+
+	void createScaleNotes(int primeNumber) {
+
+	}
+};
+
+class majorScale :public Scale {
+public:
+	majorScale(std::string name, std::string t, int primeNumber) :Scale(name,t) {
+		createScaleNotes(primeNumber);
+		scaleChords = { "major","minor","minor","major","major","minor","diminished" };
+		
+	}
+	
+	std::string mode = "major";
+	std::vector<int>scaleIntervals = { 0,2,4,5,7,9,11 };
+	
+
+
+	void createScaleNotes(int primeNumber) {
+		
+		int idx;
+		std::vector<std::string>notesVector;
+		if (type == "sharp" || type == "none") {
+			notesVector = sharps;
+			std::vector<std::string>::iterator it = std::find(sharps.begin(), sharps.end(), scaleName);
+			if (it != sharps.end()) {
+				idx = std::distance(sharps.begin(), it);
+			}
+		}
+		else if (type == "flat") {
+			notesVector = flats;
+			std::vector<std::string>::iterator it = std::find(flats.begin(), flats.end(), scaleName);
+			if (it != flats.end()) {
+				idx = std::distance(flats.begin(), it);
+			}
+		}
+
+
+		for (int i = 0; i < 7; i++) {
+			if (primeNumber + scaleIntervals[i] > 71) {
+				notesMidiNumbers.push_back(60+(primeNumber + scaleIntervals[i])%12);
+			}
+			else {
+				notesMidiNumbers.push_back(primeNumber + scaleIntervals[i]);
+			}
+			
+			if (idx + scaleIntervals[i] > notesVector.size() - 1) {
+				notesNames.push_back(notesVector[(idx + scaleIntervals[i]) % notesVector.size()]);
+			}
+			else
+				notesNames.push_back(notesVector[idx + scaleIntervals[i]]);
+		}
+	}
+	
+
+	
+};
+
+class minorScale :public Scale {
+public:
+	minorScale(std::string name, std::string m, std::string t, int primeNumber) :Scale(name, t) {
+		createScaleNotes(primeNumber);
+	}
+
+	std::string mode = "minor";
+	std::vector<int>scaleIntervals = { 0,2,4,5,7,9,11 };
+	std::vector<std::string>scaleChords = {"minor","diminished", "major","minor","minor","major","major" };
+
+
+	void createScaleNotes(int primeNumber) {
+
+	}
+
+
+};
 
 
 class Scales {
 public:
 	Scales() {
 		createScales();
-		setNoteNumberToNoteNameMap();
 	}
 
 	void createScales() {
-		//scalesMap["C"] = std::vector<int>{ 24,26,28,29,31,33,35 }; //C major/a minor
-		//scalesMap["G"] = std::vector<int>{ 24,26,28,30,31,33,35 };//G major
-		//scalesMap["D"] = std::vector<int>{ 25,26,28,30,31,33,35 };//D major
-		//scalesMap["A"] = std::vector<int>{ 25,26,28,30,32,33,35 };//A major
-		//scalesMap["E"] = std::vector<int>{ 25,27,28,30,32,33,35 };//E major
-		//scalesMap["B"] = std::vector<int>{ 25,27,28,30,32,34,35 };//B major
 
-		scalesMap[0] = std::vector<int>{ 60,62,64,65,67,69,71 }; //C major/a minor
-		scalesMap[1] = std::vector<int>{ 60,62,64,66,67,69,71 };//G major
-		scalesMap[2] = std::vector<int>{ 61,62,64,66,67,69,71 };//D major
-		scalesMap[3] = std::vector<int>{ 61,62,64,66,68,69,71 };//A major
-		scalesMap[4] = std::vector<int>{ 61,63,64,66,68,69,71 };//E major
-		scalesMap[5] = std::vector<int>{ 61,63,64,66,68,70,71 };//B major
+		
 
-
-		scalesIndexToName[0] = "C";
-		scalesIndexToName[1] = "G";
-		scalesIndexToName[2] = "D";
-		scalesIndexToName[3] = "A";
-		scalesIndexToName[4] = "E";
-		scalesIndexToName[5] = "B";
+		scalesVector.push_back(new majorScale("C", "none", 60));
+		
+		scalesVector.push_back(new majorScale("G", "none", 67));
+		
+		/*scalesVector.push_back(new Scale("D", "major", "none", 62));
+		scalesVector.push_back(new Scale("A", "major", "none", 69));
+		scalesVector.push_back(new Scale("E", "major", "none", 64));*/
+		
 	}
 
-	void setNoteNumberToNoteNameMap() {
-		noteNumberToNoteNameMap[60] = "C";
-		noteNumberToNoteNameMap[61] = "C#";
-		noteNumberToNoteNameMap[62] = "D";
-		noteNumberToNoteNameMap[63] = "D#";
-		noteNumberToNoteNameMap[64] = "E";
-		noteNumberToNoteNameMap[65] = "F";
-		noteNumberToNoteNameMap[66] = "F#";
-		noteNumberToNoteNameMap[67] = "G";
-		noteNumberToNoteNameMap[68] = "G#";
-		noteNumberToNoteNameMap[69] = "A";
-		noteNumberToNoteNameMap[70] = "A#";
-		noteNumberToNoteNameMap[71] = "B";
-	}
 
 	std::vector<int> countMatches(std::set<int>melodyNotes) {//returns how many common notes has melody with each scale
-		std::vector<int>matchCounts(scalesMap.size(), 0);
+		std::vector<int>matchCounts(scalesVector.size(), 0);
 		
 		for (auto it = melodyNotes.begin(); it != melodyNotes.end(); it++) {
 			int index = 0;
-			for (auto it2 = scalesMap.begin(); it2 != scalesMap.end(); ++it2) {
-				// iter->first = klucz
-				// iter->second = wartosc
-				std::vector<int>::iterator it3 = std::find(it2->second.begin(), it2->second.end(),*it);
-				if (it3 != it2->second.end()) {
+			for (auto it2 = scalesVector.begin(); it2 != scalesVector.end(); ++it2) {
+				std::vector<int>::iterator it3 = std::find((*it2)->notesMidiNumbers.begin(), (*it2)->notesMidiNumbers.end(),*it);
+				if (it3 != (*it2)->notesMidiNumbers.end()) {
 					matchCounts[index] ++;
 				}
 				index++;
@@ -81,36 +147,34 @@ public:
 		int counter = 0;
 		for (auto it = matchCountsVector.begin(); it != matchCountsVector.end(); it++) {
 			if (*it == matchCountsVector[maxIndex])
-				maxCounts.push_back(matchCountsVector[counter]);
+				maxCounts.push_back(counter);
 			counter++;
 		}
-		DBG("matchCounts vector size:");
-		DBG(maxCounts.size());
+		//najczêœciej wystepuj¹cy dŸwiêk- tonika
+		
 		if (maxCounts.size() == 1) {
-			matchedScaleIndex = maxCounts[0];
-			matchedScaleName = scalesIndexToName[matchedScaleIndex];
+			matchedScale = scalesVector[maxCounts[0]];//scale fit to melody
 		}
 		else {
-			int idx;
-			for (auto it = maxCounts.begin(); it != maxCounts.end(); it++) {
-				DBG("scalesMap[*it][0]");
-				DBG(String(scalesMap[*it][0]));
-				DBG("first note in melody:");
-				DBG(melodyNotesVector[0]);
-				if (scalesMap[*it][0]==melodyNotesVector[0]) {
-					matchedScaleIndex = *it;
-					matchedScaleName = scalesIndexToName[matchedScaleIndex];
-
+			for (auto it = maxCounts.begin(); it != maxCounts.end(); ++it) {
+				if (scalesVector[*it]->notesMidiNumbers[0] == melodyNotesVector[0]) {
+					matchedScale = scalesVector[*it];
 				}
 			}
 		}
-		/*matchedScaleIndex = maxCountIndex;
-		matchedScaleName = scalesIndexToName[maxCountIndex];*/
+
+		
+		
+		DBG("matched scale name:");
+		DBG(matchedScale->scaleName);
+		
 		
 		
 	}
-
-	
+	//========================
+	std::vector<Scale*>scalesVector;
+	Scale* matchedScale;
+	//========================
 	std::map<int, std::vector < int >> scalesMap;
 	std::map<int, std::string> scalesIndexToName;
 	std::map<std::string, int> scalesMatches; //iloœæ dŸwiêków wspólnych miêdzy melodi¹ a kolejnymi skalami
@@ -119,19 +183,65 @@ public:
 	std::map<int, std::string> noteNumberToNoteNameMap;
 };
 
+class Chord {
+public:
+	Chord(std::string prime, int pn, std::string m, std::string specialF = "none") {
+		primeNote = prime;
+		primeMidiNumber = pn;
+		mode = m;
+		name = primeNote + mode;
+		specialFunction = specialF;
+		setChordNotes();
+	}
+	std::string primeNote;
+	int primeMidiNumber;
+	std::string mode;//major/minor/diminished
+	std::string name;
+	std::string specialFunction;//tonic,subdominant or dominant
+	std::vector<int>chordNotesMidiNumbers;
+
+	void setChordNotes() {
+		std::vector<int>intervals;
+		chordNotesMidiNumbers.push_back(primeMidiNumber);
+		if (mode == "major") {
+			intervals = { 4,7 };
+
+		}
+		else if (mode == "minor") {
+			intervals = { 3,7 };
+		}
+		else if (mode == "diminished") {
+			intervals = { 3,6 };
+		}
+
+		for (auto it = intervals.begin(); it != intervals.end(); ++it)
+			chordNotesMidiNumbers.push_back(primeMidiNumber + *it);
+
+	}
+};
+
+
+
 class ChordCreator {
 public:
 	ChordCreator() {
-		//middle C -> 60
-		majorScaleChordComponents[1] = { 4,7 };
-		majorScaleChordComponents[2] = { 3,7 };
-		majorScaleChordComponents[3] = { 3,7 };
-		majorScaleChordComponents[4] = { 4,7 };
-		majorScaleChordComponents[5] = { 4,7 };
-		majorScaleChordComponents[6] = { 3,7 };
-		majorScaleChordComponents[7] = { 3,6 };
+		
 
 	};
+
+	void setCurrentScaleChords() {//creates a vector of chord objects for each scale step
+		std::vector<int> matchedScaleNotesNumbers = scales.matchedScale->notesMidiNumbers;//notes of current matched scale
+		std::vector<std::string> matchedScaleNotesNames = scales.matchedScale->notesNames;//notes names of current matched scale
+		std::vector<std::string> matchedScaleChordsModes = scales.matchedScale->scaleChords;//chord modes of current matched scale
+
+		int index = 0;
+		
+		for (auto it = matchedScaleNotesNumbers.begin(); it != matchedScaleNotesNumbers.end(); ++it) {
+			currentScaleChords.push_back(new Chord(matchedScaleNotesNames[index], *it, matchedScaleChordsModes[index]));
+			index++;
+		}
+	}
+
 
 	void setMelodyNotes(MidiBuffer* melody) { //creates melodyNotesSet and melodyNotesVector from MidiBuffer
 		MidiMessage m; int time;
@@ -155,22 +265,7 @@ public:
 	//notes to which chords should be added
 
 	
-	void setScaleChords() {//sets currentScaleChords
-		std::vector<int> matchedScaleNotes=scales.scalesMap[scales.matchedScaleIndex];
-		int index = 0;
-		for (auto it = matchedScaleNotes.begin(); it != matchedScaleNotes.end(); ++it) {
-			currentScaleChords[index] = {*it,*it+majorScaleChordComponents[index+1][0],*it + majorScaleChordComponents[index + 1][1] };
-			
-			index++;
-		}
-		DBG(String(scales.matchedScaleName));
-	}
 
-	/*void transposeMelodyToProcessNotes() {//transpose melody notes to lower octave (C4 - middle C)
-		for (auto it = melodyNotesToProcessVector.begin(); it != melodyNotesToProcessVector.end(); it++) {
-			*it=60+*it%12;//60-middle C note number
-		}
-	}*/
 	void transposeMelodyNotes(std::vector<int>notes) {
 		for (auto it = notes.begin(); it != notes.end(); it++) {
 			*it = 60 + *it % 12;//60-middle C note number
@@ -183,19 +278,25 @@ public:
 		scales.findScaleMatch(melodyNotesSet,melodyNotesVector);//matching scale to melody
 	}
 
-	std::vector<int> matchChord(int midiNoteNumber) {//matches chord to melody note
+	Chord* matchChord(int midiNoteNumber) {//matches chord to melody note
 
-		std::vector<int>chordMatchesCounts(currentScaleChords.size(), 0);
-
-		for (auto it = currentScaleChords.begin(); it != currentScaleChords.end(); it++) {//iteration through current scale chords map
+		std::vector<int>chordMatchesCounts(currentScaleChords.size(), 0);//creating vector of zeros of currentScaleChords size
+		int idx = 0;
+		for (auto it = currentScaleChords.begin(); it != currentScaleChords.end(); it++) {//iteration through current scale chords vector
 			
-			std::vector<int>::iterator it2 = std::find(it->second.begin(), it->second.end(), midiNoteNumber);
-			if (it2 != it->second.end()) {
-				chordMatchesCounts[it->first] ++;
+			for (auto it2 = (*it)->chordNotesMidiNumbers.begin(); it2 != (*it)->chordNotesMidiNumbers.end(); ++it2) {//iterating through chord's notes
+				if (*it2 == midiNoteNumber)
+					chordMatchesCounts[idx]++;
+
 			}
-			}
-		int chordMapKey= std::max_element(chordMatchesCounts.begin(), chordMatchesCounts.end()) - chordMatchesCounts.begin()+1;
-		return currentScaleChords[chordMapKey];
+			
+			idx++;
+		}
+			
+		//finding max in chordMatchesCounts vector, which will be index of matched chord
+		//tu mamy b³¹d w szukaniu max indexu: (zwraca 1 zamiast 0, a w konsoli wyœwietla siê ¿e pierwszy akord pasuje)
+		int matchedChordIndex= std::max_element(chordMatchesCounts.begin(), chordMatchesCounts.end()) - chordMatchesCounts.begin();
+		return currentScaleChords[matchedChordIndex];
 	}
 
 	void addChordToMidiBuffer(MidiMessage m,int time,std::vector<int>notesVec,MidiBuffer* midiBufferChords) {
@@ -208,10 +309,6 @@ public:
 
 			}
 			else if (m.isNoteOff()) {
-				/*MidiMessage message = MidiMessage::noteOff(m.getChannel(), *it, m.getVelocity());
-
-				midiBufferChords->addEvent(message, time+add);
-				add++;*/
 				for (auto i = 1; i <= 16; i++)
 				{
 					midiBufferChords->addEvent(MidiMessage::allNotesOff(i), time + add);
@@ -237,11 +334,15 @@ public:
 		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
 			
 			midiBufferChords->addEvent(m, time);
-			std::vector<int>notesVec= matchChord(melodyNotesToProcessVector[vectorIndex]);
+			Chord* matchedChord = matchChord(melodyNotesToProcessVector[vectorIndex]);
+			std::vector<int>notesVec= matchedChord->chordNotesMidiNumbers;
+			
 			addChordToMidiBuffer(m, time, notesVec, midiBufferChords);
-			//*midiBufferChords = *newMidiBufferChords;
-			if(m.isNoteOn()&&vectorIndex< melodyNotesToProcessVector.size()-1)
+			if (m.isNoteOn() && vectorIndex < melodyNotesToProcessVector.size() - 1) {
 				vectorIndex++;
+				//DBG(matchedChord->name);
+			}
+				
 
 		}
 	}
@@ -249,7 +350,7 @@ public:
 	void createChordProgressionOutput(MidiBuffer* midiBufferMelody, MidiBuffer* melodyBufferToProcess, MidiBuffer* midiBufferChords) {
 		matchScale(midiBufferMelody);
 		prepareMelodyToProcess(melodyBufferToProcess);
-		setScaleChords();//create map containing chords corresponding to each scale step
+		setCurrentScaleChords();//create map containing chords corresponding to each scale step
 		createChords(melodyBufferToProcess, midiBufferChords);
 	}
 
@@ -262,7 +363,8 @@ public:
 	
 	Scales scales;// scales object
 	std::map<int, std::vector<int>> majorScaleChordComponents;//thirds and fifths for each major scale chord
-	std::map<int, std::vector<int>> currentScaleChords;//chords for matched scale
+	//std::map<int, std::vector<int>> currentScaleChords;//chords for matched scale
+	std::vector<Chord*>currentScaleChords;//chords for matched scale
 	
 };
 
