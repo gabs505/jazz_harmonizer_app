@@ -357,7 +357,7 @@ public:
 		
 		setAudioChannels(0, 2);
 
-		setSize(600, 160);
+		setSize(600, 400);
 		startTimer(400);
 
 		addAndMakeVisible(button);
@@ -388,6 +388,9 @@ public:
 		addAndMakeVisible(playChordsAndMelodyButton);
 		playChordsAndMelodyButton.onClick = [this] {synthAudioSource.playChordsAndMelody(); };
 		playChordsAndMelodyButton.setButtonText("Play all");
+
+		addAndMakeVisible(menu);
+		menu.addItem("Cmaj7", 1);
 		
 
 
@@ -407,6 +410,7 @@ public:
 		playChords.setBounds(10, 120, 100, 30);
 		addChordsButton.setBounds(150, 10, 100, 30);
 		playChordsAndMelodyButton.setBounds(150, 50, 100, 30);
+		menu.setBounds(150, 100, 100, 100);
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
@@ -445,7 +449,7 @@ private:
 	TextButton playChordsAndMelodyButton;
 
 	ChordCreator chordCreator;
-	
+	ComboBox menu;
 	
 	
 

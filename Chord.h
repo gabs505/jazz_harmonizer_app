@@ -45,7 +45,7 @@ public:
 
 	}
 
-	void updateSpecialFunction() {
+	void updatePriority() {
 		if (step == 1 || step == 4 || step == 5)
 			priority = 100;
 		else if (step == 2 || step == 6)
@@ -55,7 +55,7 @@ public:
 		
 	}
 
-	void updatePriority() {
+	void updateSpecialFunction() {
 		if (step == 1)
 			specialFunction = "T";
 		else if (step == 4)
