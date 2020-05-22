@@ -19,7 +19,14 @@ public:
 		int index = 0;
 		
 		for (auto it = matchedScaleNotesNumbers.begin(); it != matchedScaleNotesNumbers.end(); ++it) {
-			currentScaleChords.push_back(new Chord(matchedScaleNotesNames[index], *it, matchedScaleChordsModes[index]));
+			/*if(index==0)//tonic
+				currentScaleChords.push_back(new Chord(matchedScaleNotesNames[index], *it, matchedScaleChordsModes[index],"T"));
+			else if(index==3)//subdominant
+				currentScaleChords.push_back(new Chord(matchedScaleNotesNames[index], *it, matchedScaleChordsModes[index],"S"));
+			else if(index==4)//dominant
+				currentScaleChords.push_back(new Chord(matchedScaleNotesNames[index], *it, matchedScaleChordsModes[index], "D"));
+			else*/
+			currentScaleChords.push_back(new Chord(matchedScaleNotesNames[index], *it, matchedScaleChordsModes[index], index + 1));
 			index++;
 		}
 	}
@@ -36,6 +43,7 @@ public:
 		
 	}
 
+	//notes to which chords should be added
 	void setMelodyNotesVectorToProcess(MidiBuffer* melody) {
 		MidiMessage m; int time;
 		for (MidiBuffer::Iterator i(*melody); i.getNextEvent(m, time);) {
@@ -44,7 +52,7 @@ public:
 			}
 		}
 	}
-	//notes to which chords should be added
+	
 
 	int findMostFrequentMelodyNote() {
 		std::map<int, int>noteOccurrences;//number of occurences in melody for each note
@@ -98,8 +106,33 @@ public:
 			idx++;
 		}
 			
-		//finding max in chordMatchesCounts vector, which will be index of matched chord
-		int matchedChordIndex= std::max_element(chordMatchesCounts.begin(), chordMatchesCounts.end()) - chordMatchesCounts.begin();
+		//finding max in chordMatchesCounts vector
+		std::vector<int>matchingChordsIndexesVector;
+		int maxIndex= std::max_element(chordMatchesCounts.begin(), chordMatchesCounts.end()) - chordMatchesCounts.begin();
+		idx = 0;
+		for (auto it = chordMatchesCounts.begin(); it != chordMatchesCounts.end(); ++it) {//checking which chords fit the most to the melody note
+			if (*it == chordMatchesCounts[maxIndex])
+				matchingChordsIndexesVector.push_back(idx);
+			idx++;
+		}
+
+		int matchedChordIndex;
+		int prior = 0;
+		if (chordsInProgression.size() > 0) {
+
+		}
+		else {
+			for (auto it = matchingChordsIndexesVector.begin(); it != matchingChordsIndexesVector.end(); ++it) {//checking for highest chord priority
+				if (currentScaleChords[*it]->priority > prior) {
+					prior = currentScaleChords[*it]->priority;
+					matchedChordIndex = *it;
+				}
+			}
+		}
+		
+		
+		//DBG(currentScaleChords[matchedChordIndex]->chordNotesMidiNumbers.size());
+		chordsInProgression.push_back(currentScaleChords[matchedChordIndex]);
 		return currentScaleChords[matchedChordIndex];
 	}
 
@@ -107,7 +140,7 @@ public:
 		int add = 0;
 		for (auto it = notesVec.begin(); it != notesVec.end(); it++) {
 			if (m.isNoteOn()) {
-				MidiMessage message = MidiMessage::noteOn(m.getChannel(), *it, m.getVelocity());
+				MidiMessage message = MidiMessage::noteOn(m.getChannel(), *it, (uint8) 70);
 				midiBufferChords->addEvent(message,time+add);
 				add++;
 
@@ -115,9 +148,9 @@ public:
 			else if (m.isNoteOff()) {
 				for (auto i = 1; i <= 16; i++)
 				{
-					midiBufferChords->addEvent(MidiMessage::allNotesOff(i), time + add);
-					midiBufferChords->addEvent(MidiMessage::allSoundOff(i), time + add);
-					midiBufferChords->addEvent(MidiMessage::allControllersOff(i), time + add);
+					midiBufferChords->addEvent(MidiMessage::allNotesOff(i), time + add-10);
+					midiBufferChords->addEvent(MidiMessage::allSoundOff(i), time + add-10);
+					midiBufferChords->addEvent(MidiMessage::allControllersOff(i), time + add-10);
 				}
 				add++;
 
@@ -140,6 +173,7 @@ public:
 			midiBufferChords->addEvent(m, time);
 			Chord* matchedChord = matchChord(melodyNotesToProcessVector[vectorIndex]);
 			std::vector<int>notesVec= matchedChord->chordNotesMidiNumbers;
+			//DBG(notesVec.size());
 			
 			addChordToMidiBuffer(m, time, notesVec, midiBufferChords);
 			if (m.isNoteOn() && vectorIndex < melodyNotesToProcessVector.size() - 1) {
@@ -167,6 +201,7 @@ public:
 	
 	Scales scales;// scales object
 	std::vector<Chord*>currentScaleChords;//chords for matched scale
+	std::vector<Chord*>chordsInProgression;//chords which occured earlier in progression
 	
 };
 

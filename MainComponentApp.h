@@ -210,6 +210,7 @@ public:
 		FileInputStream theStream(fileMIDI);
 		theMidiFile.readFrom(theStream);
 		theMidiFile.convertTimestampTicksToSeconds();
+		
 	}
 
 	void setMidiFile() {

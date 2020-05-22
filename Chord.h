@@ -7,12 +7,14 @@
 
 class Chord {
 public:
-	Chord(std::string prime, int pn, std::string m, std::string specialF = "none") {
+	Chord(std::string prime, int pn, std::string m, int st) {
 		primeNote = prime;
 		primeMidiNumber = pn;
 		mode = m;
 		name = primeNote + mode;
-		specialFunction = specialF;
+		step = st;
+		updateSpecialFunction();
+		updatePriority();
 		setChordNotes();
 	}
 	std::string primeNote;
@@ -21,6 +23,8 @@ public:
 	std::string name;
 	std::string specialFunction;//tonic,subdominant or dominant
 	std::vector<int>chordNotesMidiNumbers;
+	int priority;//priority of choice: 1, 10 or 100
+	int step;//step of scale
 
 	void setChordNotes() {
 		std::vector<int>intervals;
@@ -39,5 +43,26 @@ public:
 		for (auto it = intervals.begin(); it != intervals.end(); ++it)
 			chordNotesMidiNumbers.push_back(primeMidiNumber + *it);
 
+	}
+
+	void updateSpecialFunction() {
+		if (step == 1 || step == 4 || step == 5)
+			priority = 100;
+		else if (step == 2 || step == 6)
+			priority = 10;
+		else if (step == 3 || step == 7)
+			priority = 1;
+		
+	}
+
+	void updatePriority() {
+		if (step == 1)
+			specialFunction = "T";
+		else if (step == 4)
+			specialFunction = "S";
+		else if (step == 5)
+			specialFunction = "D";
+		else
+			specialFunction = "none";
 	}
 };
