@@ -204,7 +204,7 @@ public:
 
 	}
 
-	void loadMidi(File fileMIDI) {
+	void loadMidi(File &fileMIDI) {
 		theMidiFile.clear();
 
 		FileInputStream theStream(fileMIDI);
@@ -223,7 +223,6 @@ public:
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
 				if (m.isTempoMetaEvent()) {
 					quarterNoteLengthInSamples = round(m.getTempoSecondsPerQuarterNote() * synth.getSampleRate());
-					DBG(String(quarterNoteLengthInSamples));
 				}
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
@@ -277,8 +276,7 @@ public:
 
 	void addChordProgression() {
 		MidiMessage m; int time;
-		chordCreator.createChordProgressionOutput(midiBufferMelody,melodyBufferToProcess, midiBufferChords);
-	
+		chordCreator.createChordProgressionOutput(midiBufferMelody,melodyBufferToProcess,midiBufferChords,notesToProcessVector, possibleChordsToEachNoteMap,chordsInProgressionIds);
 	}
 
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
@@ -320,6 +318,9 @@ public:
 
 	}
 
+	void changeChordProgressionFromGUI(String menuId, int chordId) {
+		chordCreator.changeChordProgression(menuId, chordId, melodyBufferToProcess, midiBufferChords);
+	}
 	
 
 	
@@ -333,6 +334,9 @@ public:
 	int bufferLength;
 	int currentSample;
 	int sixteenthNoteLengthInSamples;
+	std::vector<int>notesToProcessVector;
+	std::map<int, std::vector<Chord*>>possibleChordsToEachNoteMap;
+	std::vector<int>chordsInProgressionIds;
 private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
@@ -346,8 +350,7 @@ private:
 };
 
 //==============================================================================
-class MainContentComponent : public AudioAppComponent,
-	private Timer
+class MainContentComponent :public AudioAppComponent
 {
 public:
 	MainContentComponent()
@@ -357,8 +360,7 @@ public:
 		
 		setAudioChannels(0, 2);
 
-		setSize(600, 400);
-		startTimer(400);
+		setSize(800,700);
 
 		addAndMakeVisible(button);
 		button.setButtonText("Load MIDI");
@@ -381,7 +383,8 @@ public:
 		playChords.setButtonText("Play Chords");
 
 		addAndMakeVisible(addChordsButton);
-		addChordsButton.onClick = [this] {synthAudioSource.addChordProgression(); };
+		addChordsButton.onClick = [this] {synthAudioSource.addChordProgression();
+											 makeComponentRepaint(); };
 		addChordsButton.setButtonText("Add Chords");
 
 		
@@ -389,9 +392,8 @@ public:
 		playChordsAndMelodyButton.onClick = [this] {synthAudioSource.playChordsAndMelody(); };
 		playChordsAndMelodyButton.setButtonText("Play all");
 
-		addAndMakeVisible(menu);
-		menu.addItem("Cmaj7", 1);
 		
+
 
 
 	}
@@ -399,6 +401,17 @@ public:
 	~MainContentComponent() override
 	{
 		shutdownAudio();
+	}
+
+	void makeComponentRepaint() {
+		setChordComboBoxes();
+		int idx = 0;
+		for (auto it = comboBoxVec.begin(); it != comboBoxVec.end(); ++it) {
+			ComboBox* box = *it;
+			box->setBounds(10 + idx * 110, 140, 100, 30);
+			idx++;
+		}
+		repaint();
 	}
 
 	void resized() override
@@ -410,7 +423,17 @@ public:
 		playChords.setBounds(10, 120, 100, 30);
 		addChordsButton.setBounds(150, 10, 100, 30);
 		playChordsAndMelodyButton.setBounds(150, 50, 100, 30);
-		menu.setBounds(150, 100, 100, 100);
+		
+		
+		int idx = 0;
+		for (auto it=comboBoxVec.begin(); it != comboBoxVec.end();++it) {
+			ComboBox* box = *it;
+			box->setBounds(110 + idx * 110,140 , 100, 30);
+			idx++;
+		}
+		
+
+
 	}
 
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
@@ -428,14 +451,39 @@ public:
 		synthAudioSource.releaseResources();
 	}
 
+	void setChordComboBoxes() {
+		if (synthAudioSource.notesToProcessVector.size()!=0) {
+			int i = 0;
+			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end();++it) {
+				std::string id = "menu" + std::to_string(i);
+				auto menu = new ComboBox(String(id));
+				menu->setComponentID(String(i));
+				
+				std::vector<Chord*>chords=synthAudioSource.possibleChordsToEachNoteMap[*it];
+					int j = 0;
+					for (auto it2 = chords.begin(); it2 != chords.end(); ++it2) {
+						menu->addItem((*it2)->name, j + 1);
+						j++;
+					}
+					
+					menu->setSelectedId(synthAudioSource.chordsInProgressionIds[i]);
+					
+					menu->onChange = [this, menu] 
+					{synthAudioSource.changeChordProgressionFromGUI(menu->getComponentID(), menu->getSelectedId() - 1); };
 
+				comboBoxVec.push_back(menu);
+				addAndMakeVisible(menu);
+				i++;
+			}
+		}
+
+	}
+	
+	
+	
 
 private:
-	void timerCallback() override
-	{
-		//keyboardComponent.grabKeyboardFocus();
-		stopTimer();
-	}
+	
 
 	//==========================================================================
 	SynthAudioSource synthAudioSource;
@@ -448,10 +496,10 @@ private:
 	TextButton addChordsButton;
 	TextButton playChordsAndMelodyButton;
 
+	
 	ChordCreator chordCreator;
-	ComboBox menu;
-	
-	
-
+	std::vector<ComboBox*> comboBoxVec;
+	std::vector<int>intVector;
+	String selectedComboBoxIdx;
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainContentComponent)
 };
