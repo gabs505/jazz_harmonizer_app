@@ -1,47 +1,36 @@
 /*
   ==============================================================================
-
    This file is part of the JUCE tutorials.
    Copyright (c) 2017 - ROLI Ltd.
-
    The code included in this file is provided under the terms of the ISC license
    http://www.isc.org/downloads/software-support-policy/isc-license. Permission
    To use, copy, modify, and/or distribute this software for any purpose with or
    without fee is hereby granted provided that the above copyright notice and
    this permission notice appear in all copies.
-
    THE SOFTWARE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES,
    WHETHER EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR
    PURPOSE, ARE DISCLAIMED.
-
   ==============================================================================
 */
 
 /*******************************************************************************
  The block below describes the properties of this PIP. A PIP is a short snippet
  of code that can be read by the Projucer and used to generate a JUCE project.
-
  BEGIN_JUCE_PIP_METADATA
-
  name:             SynthUsingMidiInputTutorial
  version:          1.0.0
  vendor:           JUCE
  website:          http://juce.com
  description:      Synthesiser with midi input.
-
  dependencies:     juce_audio_basics, juce_audio_devices, juce_audio_formats,
 				   juce_audio_processors, juce_audio_utils, juce_core,
 				   juce_data_structures, juce_events, juce_graphics,
 				   juce_gui_basics, juce_gui_extra
  exporters:        xcode_mac, vs2017, linux_make
-
  type:             Component
  mainClass:        MainContentComponent
-
  useLocalCopy:     1
-
  END_JUCE_PIP_METADATA
-
 *******************************************************************************/
 
 
@@ -129,13 +118,13 @@ struct SineWaveVoice : public SynthesiserVoice
 			{
 				while (--numSamples >= 0) // [6]
 				{
-				auto currentSample = (float)(std::sin(currentAngle) * level);
+					auto currentSample = (float)(std::sin(currentAngle) * level);
 
-				for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-					outputBuffer.addSample(i, startSample, currentSample);
+					for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
+						outputBuffer.addSample(i, startSample, currentSample);
 
-				currentAngle += angleDelta;
-				++startSample;
+					currentAngle += angleDelta;
+					++startSample;
 				}
 			}
 		}
@@ -165,7 +154,7 @@ public:
 
 	void prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate) override
 	{
-	synth.setCurrentPlaybackSampleRate(sampleRate); // [3]
+		synth.setCurrentPlaybackSampleRate(sampleRate); // [3]
 	}
 
 	void releaseResources() override {}
@@ -204,17 +193,19 @@ public:
 
 	}
 
-	void loadMidi(File &fileMIDI) {
+	void loadMidi(File& fileMIDI) {
 		theMidiFile.clear();
+		midiBufferMelody->clear();
 
 		FileInputStream theStream(fileMIDI);
 		theMidiFile.readFrom(theStream);
 		theMidiFile.convertTimestampTicksToSeconds();
-		
+
 	}
 
 	void setMidiFile() {
 		midiBufferMelody->clear(); //clearing midi buffer if any midi file was already loaded
+		melodyBufferToProcess->clear();
 
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
@@ -237,15 +228,15 @@ public:
 	}
 
 	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
-		
+
 		if (m.isNoteOn()) {
 			float division = (float)sampleOffset / (float)quarterNoteLengthInSamples;
-			if (ceil(division)-division<0.1|| abs(floor(division) - division) <0.1|| division ==0){
+			if (ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
 				melodyBufferToProcess->addEvent(m, sampleOffset);
 			}
-			
+
 		}
-		else if(m.isNoteOff())
+		else if (m.isNoteOff())
 			melodyBufferToProcess->addEvent(m, sampleOffset);
 	}
 
@@ -276,7 +267,9 @@ public:
 
 	void addChordProgression() {
 		MidiMessage m; int time;
-		chordCreator.createChordProgressionOutput(midiBufferMelody,melodyBufferToProcess,midiBufferChords,notesToProcessVector, possibleChordsToEachNoteMap,chordsInProgressionIds);
+		midiBufferChords->clear();
+		chordCreator->createChordProgressionOutput(midiBufferMelody, melodyBufferToProcess,midiBufferChords, 
+			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds,chordsInProgression);
 	}
 
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
@@ -286,11 +279,11 @@ public:
 		else if (m.isNoteOn()) {
 			float division = (float)sampleOffset / (float)sixteenthNoteLengthInSamples;
 			return sampleOffset = round(division) * sixteenthNoteLengthInSamples;
-			
+
 		}
 	}
 
-	
+
 
 	void sendAllNotesOff(MidiBuffer& midiMessages)
 	{
@@ -304,28 +297,40 @@ public:
 		midiIsPlaying = false;
 	}
 
-	void pauseResumePlayback(){
+	void pauseResumePlayback() {
 
 		if (midiIsPaused) {
 			midiIsPlaying = true;
 			midiIsPaused = false;
 		}
-			
+
 		else {
 			midiIsPlaying = false;
 			midiIsPaused = true;
-		}	
+		}
 
 	}
 
 	void changeChordProgressionFromGUI(String menuId, int chordId) {
-		chordCreator.changeChordProgression(menuId, chordId, melodyBufferToProcess, midiBufferChords);
+		midiBufferChords->clear();
+		int menuIdInt = menuId.getIntValue();
+		chordsInProgression[menuIdInt] = possibleChordsToEachNoteMap[notesToProcessVector[menuIdInt]][chordId];
+		MidiMessage m; int time; int idx = 0;
+		
+		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
+			Chord* matchedChord = chordsInProgression[idx];
+			chordCreator->addChordToMidiBuffer(m, time,matchedChord ,midiBufferChords);
+			if (m.isNoteOn()) {
+				idx++;
+			}
+			
+		}
 	}
-	
 
-	
+
+
 	MidiBuffer* currentMidiBuffer = new MidiBuffer();
-	MidiBuffer*midiBufferMelody = new MidiBuffer();
+	MidiBuffer* midiBufferMelody = new MidiBuffer();
 	MidiBuffer* melodyBufferToProcess = new MidiBuffer();
 	MidiBuffer* midiBufferChords = new MidiBuffer();
 	int samplesPlayed;
@@ -337,6 +342,7 @@ public:
 	std::vector<int>notesToProcessVector;
 	std::map<int, std::vector<Chord*>>possibleChordsToEachNoteMap;
 	std::vector<int>chordsInProgressionIds;
+	std::vector<Chord*>chordsInProgression;
 private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
@@ -345,8 +351,8 @@ private:
 
 	int quarterNoteLengthInSamples;
 
-	ChordCreator chordCreator;
-	
+	ChordCreator* chordCreator = new ChordCreator();
+
 };
 
 //==============================================================================
@@ -357,14 +363,24 @@ public:
 		: synthAudioSource(keyboardState),
 		keyboardComponent(keyboardState, MidiKeyboardComponent::horizontalKeyboard)
 	{
-		
+
 		setAudioChannels(0, 2);
 
-		setSize(800,700);
+		setSize(800, 700);
+
+	
+		container.setBounds(0, 0, 110, 200);
+
+		addAndMakeVisible(viewport);
+		viewport.setTopLeftPosition(10, 160);
+		viewport.setSize(900, 400);
+		viewport.setViewedComponent(&container, false);
+		
 
 		addAndMakeVisible(button);
 		button.setButtonText("Load MIDI");
-		
+
+
 		button.onClick = [this] {FileChooser theFileChooser("Find a MIDI file", File(), "*.mid*");
 		theFileChooser.browseForFileToOpen();
 		synthAudioSource.loadMidi(theFileChooser.getResult());
@@ -384,15 +400,15 @@ public:
 
 		addAndMakeVisible(addChordsButton);
 		addChordsButton.onClick = [this] {synthAudioSource.addChordProgression();
-											 makeComponentRepaint(); };
+		makeComponentRepaint(); };
 		addChordsButton.setButtonText("Add Chords");
 
-		
+
 		addAndMakeVisible(playChordsAndMelodyButton);
 		playChordsAndMelodyButton.onClick = [this] {synthAudioSource.playChordsAndMelody(); };
 		playChordsAndMelodyButton.setButtonText("Play all");
 
-		
+
 
 
 
@@ -404,34 +420,32 @@ public:
 	}
 
 	void makeComponentRepaint() {
+		container.deleteAllChildren();
+		container.setBounds(0, 0, synthAudioSource.notesToProcessVector.size() * 120, 200);
 		setChordComboBoxes();
-		int idx = 0;
-		for (auto it = comboBoxVec.begin(); it != comboBoxVec.end(); ++it) {
-			ComboBox* box = *it;
-			box->setBounds(10 + idx * 110, 140, 100, 30);
-			idx++;
-		}
 		repaint();
 	}
 
 	void resized() override
 	{
-		
+
 		button.setBounds(10, 10, 100, 30);
 		playMidi.setBounds(10, 50, 100, 30);
 		pauseResume.setBounds(10, 90, 100, 30);
 		playChords.setBounds(10, 120, 100, 30);
 		addChordsButton.setBounds(150, 10, 100, 30);
 		playChordsAndMelodyButton.setBounds(150, 50, 100, 30);
+
+		viewport.setSize(getWidth(), 400);
 		
-		
-		int idx = 0;
-		for (auto it=comboBoxVec.begin(); it != comboBoxVec.end();++it) {
+
+		/*int idx = 0;
+		for (auto it = comboBoxVec.begin(); it != comboBoxVec.end(); ++it) {
 			ComboBox* box = *it;
-			box->setBounds(110 + idx * 110,140 , 100, 30);
+			box->setBounds(110 + idx * 110, 140, 100, 30);
 			idx++;
-		}
-		
+		}*/
+
 
 
 	}
@@ -452,38 +466,41 @@ public:
 	}
 
 	void setChordComboBoxes() {
-		if (synthAudioSource.notesToProcessVector.size()!=0) {
+		comboBoxVec.clear();
+		if (synthAudioSource.notesToProcessVector.size() != 0) {
 			int i = 0;
-			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end();++it) {
+			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end(); ++it) {
 				std::string id = "menu" + std::to_string(i);
 				auto menu = new ComboBox(String(id));
 				menu->setComponentID(String(i));
-				
-				std::vector<Chord*>chords=synthAudioSource.possibleChordsToEachNoteMap[*it];
-					int j = 0;
-					for (auto it2 = chords.begin(); it2 != chords.end(); ++it2) {
-						menu->addItem((*it2)->name, j + 1);
-						j++;
-					}
-					
-					menu->setSelectedId(synthAudioSource.chordsInProgressionIds[i]);
-					
-					menu->onChange = [this, menu] 
-					{synthAudioSource.changeChordProgressionFromGUI(menu->getComponentID(), menu->getSelectedId() - 1); };
 
+				std::vector<Chord*>chords = synthAudioSource.possibleChordsToEachNoteMap[*it];
+				int j = 0;
+				for (auto it2 = chords.begin(); it2 != chords.end(); ++it2) {
+					menu->addItem((*it2)->name, j + 1);
+					j++;
+				}
+
+				menu->setSelectedId(synthAudioSource.chordsInProgressionIds[i]);
+
+				/*menu->onChange = [this, menu]
+				{synthAudioSource.changeChordProgressionFromGUI(menu->getComponentID(), menu->getSelectedId() - 1); };
+				*/
 				comboBoxVec.push_back(menu);
-				addAndMakeVisible(menu);
+				menu->setBounds(10 + i * 110, 140, 100, 30);
+				
+				container.addAndMakeVisible(menu);
 				i++;
 			}
 		}
 
 	}
-	
-	
-	
+
+
+
 
 private:
-	
+
 
 	//==========================================================================
 	SynthAudioSource synthAudioSource;
@@ -495,9 +512,11 @@ private:
 	TextButton playChords;
 	TextButton addChordsButton;
 	TextButton playChordsAndMelodyButton;
+	
+	Viewport viewport;
+	Component container;
 
 	
-	ChordCreator chordCreator;
 	std::vector<ComboBox*> comboBoxVec;
 	std::vector<int>intVector;
 	String selectedComboBoxIdx;

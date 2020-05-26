@@ -7,6 +7,9 @@
 
 class Chord {
 public:
+	Chord() {
+
+	}
 	Chord(std::string prime, int pn, std::string m, int st) {
 		primeNote = prime;
 		primeMidiNumber = pn;
