@@ -483,9 +483,9 @@ public:
 
 				menu->setSelectedId(synthAudioSource.chordsInProgressionIds[i]);
 
-				/*menu->onChange = [this, menu]
+				menu->onChange = [this, menu]
 				{synthAudioSource.changeChordProgressionFromGUI(menu->getComponentID(), menu->getSelectedId() - 1); };
-				*/
+				
 				comboBoxVec.push_back(menu);
 				menu->setBounds(10 + i * 110, 140, 100, 30);
 				

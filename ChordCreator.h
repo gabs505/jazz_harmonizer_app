@@ -131,23 +131,25 @@ public:
 	Chord* matchChord(int midiNoteNumber, bool isNoteOn,Melody* &melody) {
 		//iterating through chords vector which fit to current note np.{Chord1*,Chord2*}
 		int prior = 0;
-		//int idx = 0;
 		Chord* matchedChord=new Chord();
 		for (auto it = melody->possibleChordsToEachNoteMap[midiNoteNumber].begin(); it != melody->possibleChordsToEachNoteMap[midiNoteNumber].end(); ++it) {//checking for highest chord priority
 			if ((*it)->priority > prior) {
 				prior = (*it)->priority;
 				matchedChord = *it;
-				//idx++;
 			}
 		}
 		melody->chordsInProgression.push_back(matchedChord);
 		int idx = 0;
+		int chordIndex;
 		for (auto it = melody->possibleChordsToEachNoteMap[midiNoteNumber].begin(); it != melody->possibleChordsToEachNoteMap[midiNoteNumber].end(); ++it) {
+			idx++;
 			if (matchedChord->name == (*it)->name) {
-				idx++;
+				chordIndex = idx;
 			}
 		}
-		melody->chordsInProgressionIds.push_back(idx);
+		
+		if(isNoteOn)
+			melody->chordsInProgressionIds.push_back(chordIndex);
 		return matchedChord;
 	}
 	/*Chord* matchChord(int midiNoteNumber,bool isNoteOn) {//matches chord to melody note
