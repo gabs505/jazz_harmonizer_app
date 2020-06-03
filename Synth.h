@@ -170,6 +170,7 @@ public:
 	void setMidiFile() {
 		midiBufferMelody->clear(); //clearing midi buffer if any midi file was already loaded
 		melodyBufferToProcess->clear();
+		midiEventsTimes.clear();
 
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
@@ -194,9 +195,10 @@ public:
 	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
 
 		if (m.isNoteOn()) {
-			float division = (float)sampleOffset / (float)quarterNoteLengthInSamples;
+			float division = (float)sampleOffset / ((float)quarterNoteLengthInSamples*2.0);
 			if (ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
 				melodyBufferToProcess->addEvent(m, sampleOffset);
+				midiEventsTimes.push_back(sampleOffset);
 			}
 
 		}
@@ -232,7 +234,7 @@ public:
 	void addChordProgression() {
 		MidiMessage m; int time;
 		midiBufferChords->clear();
-		chordCreator->createChordProgressionOutput(midiBufferMelody, melodyBufferToProcess, midiBufferChords,
+		chordCreator->createChordProgressionOutput(midiBufferMelody, melodyBufferToProcess, midiBufferChords,quarterNoteLengthInSamples,
 			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds, chordsInProgression);
 	}
 
@@ -247,6 +249,38 @@ public:
 		}
 	}
 
+	void playFromChosenChord(String id) {
+		int idx = id.getIntValue();
+		int currentTime = midiEventsTimes[idx];
+		/*MidiBuffer* newMidiBuffer = new MidiBuffer();
+		newMidiBuffer->addEvents(*midiBufferChords, currentTime, midiBufferChords->getLastEventTime(), -currentTime);
+		*currentMidiBuffer = *newMidiBuffer;*/
+
+		*currentMidiBuffer = *midiBufferChords;
+		samplesPlayed = currentTime;
+		midiIsPlaying = true;
+	}
+
+	void playSingleChosenChord(String id) {
+		int idx = id.getIntValue();
+		int currentTime = midiEventsTimes[idx];
+		Chord* chordToPlay = chordsInProgression[idx];
+		int add = 0;
+		MidiBuffer* newMidiBuffer = new MidiBuffer();
+		for (auto it = chordToPlay->chordNotesMidiNumbers.begin(); it != chordToPlay->chordNotesMidiNumbers.end(); ++it) {
+			MidiMessage m = MidiMessage::noteOn(1, *it, (uint8)100);
+			newMidiBuffer->addEvent(m, 0+add);
+			add++;
+		}
+
+		MidiMessage m = MidiMessage::allNotesOff(1);
+		
+		newMidiBuffer->addEvent(m, (int)synth.getSampleRate() / 3.0);
+		
+		*currentMidiBuffer = *newMidiBuffer;
+		samplesPlayed = 0;
+		midiIsPlaying = true;
+	}
 
 
 	void sendAllNotesOff(MidiBuffer& midiMessages)
@@ -303,10 +337,11 @@ public:
 	int bufferLength;
 	int currentSample;
 	int sixteenthNoteLengthInSamples;
-	std::vector<int>notesToProcessVector;
+	std::vector<std::pair<int,int>>notesToProcessVector;
 	std::map<int, std::vector<Chord*>>possibleChordsToEachNoteMap; //melody notes indexes with fitting chords vector
 	std::vector<int>chordsInProgressionIds;
 	std::vector<Chord*>chordsInProgression;
+	std::vector<int>midiEventsTimes;
 private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;

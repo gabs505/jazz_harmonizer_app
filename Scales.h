@@ -2,7 +2,7 @@
 
 #pragma once
 #include <JuceHeader.h>
-#include "Chord.h"
+#include "Melody.h"
 #include <vector>
 #include <set>
 
@@ -111,21 +111,31 @@ public:
 
 
 
-		scalesVector.push_back(new MajorScale("C", "none", 60));
-		scalesVector.push_back(new MajorScale("G", "none", 67));
-		scalesVector.push_back(new MajorScale("D", "none", 62));
-		scalesVector.push_back(new MajorScale("A", "none", 69));
-		scalesVector.push_back(new MajorScale("E", "none", 64));
+		majorScalesVector.push_back(new MajorScale("C", "none", 60));
+		majorScalesVector.push_back(new MajorScale("G", "sharp", 67));
+		majorScalesVector.push_back(new MajorScale("D", "sharp", 62));
+		majorScalesVector.push_back(new MajorScale("A", "sharp", 69));
+		majorScalesVector.push_back(new MajorScale("E", "sharp", 64));
+		majorScalesVector.push_back(new MajorScale("B", "sharp",71));
+		majorScalesVector.push_back(new MajorScale("F#", "sharp", 66));
+
+		majorScalesVector.push_back(new MajorScale("F", "flat", 65));
+		majorScalesVector.push_back(new MajorScale("Bb", "flat", 70));
+		majorScalesVector.push_back(new MajorScale("Eb", "flat", 63));
+		majorScalesVector.push_back(new MajorScale("Ab", "flat", 68));
+		majorScalesVector.push_back(new MajorScale("Db", "flat", 61));
+		
+		
 
 	}
 
 
 	std::vector<int> countMatches(std::set<int>melodyNotes) {//returns how many common notes has melody with each scale
-		std::vector<int>matchCounts(scalesVector.size(), 0);
+		std::vector<int>matchCounts(majorScalesVector.size(), 0);
 
 		for (auto it = melodyNotes.begin(); it != melodyNotes.end(); it++) {
 			int index = 0;
-			for (auto it2 = scalesVector.begin(); it2 != scalesVector.end(); ++it2) {
+			for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {
 				std::vector<int>::iterator it3 = std::find((*it2)->notesMidiNumbers.begin(), (*it2)->notesMidiNumbers.end(), *it);
 				if (it3 != (*it2)->notesMidiNumbers.end()) {
 					matchCounts[index] ++;
@@ -140,7 +150,26 @@ public:
 
 	}
 
-	void findScaleMatch(std::set<int>melodyNotesSet, std::vector<int>melodyNotesVector, int mostFrequentMelodyNote) {//matches scale to melody
+	void findScaleMatches(Melody* &melody) {
+		int idx = 0;
+		int i = 0;
+		for (auto it = melody->melodyNotesVectorToScaleDetection.begin(); it != melody->melodyNotesVectorToScaleDetection.end(); ++it) {
+			if (*it == -1) {
+				std::vector<int>notesRange(melody->melodyNotesVectorToScaleDetection[idx], melody->melodyNotesVectorToScaleDetection[i-1]);
+				idx = i + 1;
+
+				std::set<int>notesRangeSet(notesRange.begin(), notesRange.end());
+
+				matchedScales.push_back(findScaleMatch(notesRangeSet));
+				
+			}
+
+			i++;
+		}
+
+	}
+
+	Scale* findScaleMatch(std::set<int>melodyNotesSet) {//matches scale to melody
 		std::vector<int>matchCountsVector = countMatches(melodyNotesSet);//vector with number of matches for each scale
 		std::vector<int>maxCounts;//vector with indexes of scales that have max number of counts
 		int maxIndex = std::max_element(matchCountsVector.begin(), matchCountsVector.end()) - matchCountsVector.begin();
@@ -150,31 +179,16 @@ public:
 				maxCounts.push_back(counter);
 			counter++;
 		}
-		if (maxCounts.size() == 1) {
-			matchedScale = scalesVector[maxCounts[0]];//scale fit to melody
-		}
-		else {
-			for (auto it = maxCounts.begin(); it != maxCounts.end(); ++it) {
-				if (scalesVector[*it]->notesMidiNumbers[0] == mostFrequentMelodyNote) {
-					matchedScale = scalesVector[*it];
-				}
-				else if (scalesVector[*it]->notesMidiNumbers[0] == melodyNotesVector[0]) {
-					matchedScale = scalesVector[*it];
-				}
-			}
-		}
-
-
-
-		DBG("matched scale name:");
-		DBG(matchedScale->scaleName);
-
-
+		Scale* matchedScale = majorScalesVector[maxCounts[0]];//scale fit to melody
+		return matchedScale;
+		
 
 	}
+
 	//========================
-	std::vector<Scale*>scalesVector;
-	Scale* matchedScale;
+	std::vector<Scale*>majorScalesVector;
+
+	std::vector<Scale*>matchedScales;
 	//========================
 	std::map<int, std::vector < int >> scalesMap;
 	std::map<int, std::string> scalesIndexToName;

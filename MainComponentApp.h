@@ -104,8 +104,10 @@ public:
 
 	void makeComponentRepaint() {
 		container.deleteAllChildren();
-		container.setBounds(0, 0, synthAudioSource.notesToProcessVector.size() * 120, 200);
+		container.setBounds(0, 0, synthAudioSource.notesToProcessVector.size() * 120, 400);
 		setChordComboBoxes();
+		setPlayButtons();
+		setPlaySingleChordButtons();
 		repaint();
 	}
 
@@ -154,6 +156,44 @@ public:
 
 	}
 
+	void setPlayButtons() {
+		if (synthAudioSource.notesToProcessVector.size() != 0) {
+			int i = 0;
+			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end(); ++it) {
+				std::string id =std::to_string(i);
+				auto button = new TextButton();
+				button->setComponentID(String(i));
+
+				button->onClick = [this, button] { synthAudioSource.playFromChosenChord(button->getComponentID()); };
+
+				//buttonsVec.push_back(button);
+				button->setBounds(10 + i * 110, 180, 30, 20);
+				//button->setButtonText("Play");
+				button->setTooltip("Play chord progression from this point");
+				container.addAndMakeVisible(button);
+				i++;
+			}
+		}
+	}
+
+	void setPlaySingleChordButtons() {
+		if (synthAudioSource.notesToProcessVector.size() != 0) {
+			int i = 0;
+			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end(); ++it) {
+				std::string id = std::to_string(i);
+				auto button = new TextButton();
+				button->setComponentID(String(i));
+
+				button->onClick = [this, button] { synthAudioSource.playSingleChosenChord(button->getComponentID()); };
+
+				button->setBounds(10 + i * 110, 210, 30, 20);
+				button->setTooltip("Play single chord");
+
+				container.addAndMakeVisible(button);
+				i++;
+			}
+		}
+	}
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
 	{
 		synthAudioSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
@@ -195,5 +235,7 @@ private:
 	std::vector<ComboBox*> comboBoxVec;
 	std::vector<int>intVector;
 	String selectedComboBoxIdx;
+
+	std::vector<TextButton*>buttonsVec;
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainContentComponent)
 };
