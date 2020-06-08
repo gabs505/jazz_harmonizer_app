@@ -2,6 +2,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "BasicAlgorithms.h"
 #include "Melody.h"
 #include <vector>
 #include <set>
@@ -151,25 +152,59 @@ public:
 	}
 
 	void findScaleMatches(Melody* &melody) {
+		matchedScales.clear();
+		int mostFrequentMelodyNote = basicAlgorithms.findMostFrequentMelodyNote(melody->melodyNotesVector);
 		int idx = 0;
 		int i = 0;
 		for (auto it = melody->melodyNotesVectorToScaleDetection.begin(); it != melody->melodyNotesVectorToScaleDetection.end(); ++it) {
 			if (*it == -1) {
-				std::vector<int>notesRange(melody->melodyNotesVectorToScaleDetection[idx], melody->melodyNotesVectorToScaleDetection[i-1]);
+				std::vector<int>notesRange=basicAlgorithms.slice(melody->melodyNotesVectorToScaleDetection,idx,i-1); //getting subvector from vector
 				idx = i + 1;
 
 				std::set<int>notesRangeSet(notesRange.begin(), notesRange.end());
 
-				matchedScales.push_back(findScaleMatch(notesRangeSet));
-				
+				if (matchedScales.size() != 0) {
+						std::string matchedScale = basicAlgorithms.detectScale(notesRange);
+
+						//checking if scale continuation is possible
+						int numOfCommonNotes = 0;//number of common notes with scale in previous bar
+						for (auto it2 = notesRangeSet.begin(); it2 != notesRangeSet.end(); ++it2) {
+							if (std::count(matchedScales.back()->notesMidiNumbers.begin(), matchedScales.back()->notesMidiNumbers.end(), *it2)) {
+								numOfCommonNotes++;
+							}
+						}
+						if (numOfCommonNotes==notesRangeSet.size()) {
+							matchedScales.push_back(matchedScales.back());
+						}
+						else {
+							for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {
+								if ((*it2)->scaleName == matchedScale) {
+									matchedScales.push_back(*it2);
+								}
+							}
+						}
+						
+
+				}
+				else {
+					for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {//matching first and main scale based on last note of the melody
+						if ((*it2)->notesMidiNumbers[0] == melody->melodyNotesVector.back()) {
+							matchedScales.push_back(*it2);
+						}
+					}
+				}	
 			}
 
 			i++;
 		}
-
+		
+		
+		for(auto it = matchedScales.begin(); it != matchedScales.end(); ++it) {
+			DBG((*it)->scaleName);
+		}
 	}
 
-	Scale* findScaleMatch(std::set<int>melodyNotesSet) {//matches scale to melody
+	std::vector<std::string> scaleMatchingByCommonNotes(std::set<int>melodyNotesSet) {//matches scale to melody
 		std::vector<int>matchCountsVector = countMatches(melodyNotesSet);//vector with number of matches for each scale
 		std::vector<int>maxCounts;//vector with indexes of scales that have max number of counts
 		int maxIndex = std::max_element(matchCountsVector.begin(), matchCountsVector.end()) - matchCountsVector.begin();
@@ -179,8 +214,12 @@ public:
 				maxCounts.push_back(counter);
 			counter++;
 		}
-		Scale* matchedScale = majorScalesVector[maxCounts[0]];//scale fit to melody
-		return matchedScale;
+		std::vector<std::string>matchedScales;
+		for (auto it = maxCounts.begin(); it != maxCounts.end(); ++it) {
+			matchedScales.push_back(majorScalesVector[*it]->scaleName);
+		}
+		//Scale* matchedScale = majorScalesVector[maxCounts[0]];//scale fit to melody
+		return matchedScales;
 		
 
 	}
@@ -196,4 +235,6 @@ public:
 	std::string matchedScaleName;
 	int matchedScaleIndex;
 	std::map<int, std::string> noteNumberToNoteNameMap;
+
+	BasicAlgorithms basicAlgorithms;
 };

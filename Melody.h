@@ -11,8 +11,6 @@ public:
 
 	}
 	~Melody() {
-		DBG("In destructor");
-		//melodyNotesSet.clear();
 		melodyNotesSet = std::set<int>();
 		for (auto itr = possibleChordsToEachNoteMap.begin(); itr != possibleChordsToEachNoteMap.end(); itr++)
 		{
@@ -24,31 +22,25 @@ public:
 	}
 
 	void setMelodyNotesVectorToScaleDetection(MidiBuffer* melodyNotes, int quarterNoteLengthInSamples) {
-		float barLength = (float)quarterNoteLengthInSamples * 4.0;
+		float barLength = (float)quarterNoteLengthInSamples * 8.0;
 		MidiMessage m; int time;
+		float actualBar = barLength;
 		int modulo;
-		for (MidiBuffer::Iterator i(*melodyNotes); i.getNextEvent(m, time);)
+		int j = 0;
+		for (MidiBuffer::Iterator i(*melodyNotes); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
-				if (time != 0) {
-					if (time < barLength) {
-						modulo = (int)barLength % time;
-					}
-					else {
-						if (time % (int)barLength < modulo) {
-							melodyNotesVectorToScaleDetection.push_back(-1);
-						}
-						modulo = time % (int)barLength;
-					}
+				
+				DBG("something");
+				if (time >= (int)actualBar) {
+					melodyNotesVectorToScaleDetection.push_back(-1);
+					actualBar +=barLength;
 				}
 				melodyNotesVectorToScaleDetection.push_back(m.getNoteNumber());
-
+				j++;
 			}
-		melodyNotesVectorToScaleDetection.push_back(-1);
-
-		/*DBG("Vector for matching scale:");
-		for (auto it = melodyNotesVectorToScaleDetection.begin(); it != melodyNotesVectorToScaleDetection.end(); ++it) {
-			DBG(*it);
-		}*/
+		}
+		melodyNotesVectorToScaleDetection.push_back(-1);//adding -1 to the end
+		
 	}
 	std::vector<int>melodyNotesVector; //all melody notes vector
 	std::vector<int>melodyNotesVectorToScaleDetection;

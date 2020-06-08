@@ -67,7 +67,8 @@ public:
 		button.onClick = [this] {FileChooser theFileChooser("Find a MIDI file", File(), "*.mid*");
 		theFileChooser.browseForFileToOpen();
 		synthAudioSource.loadMidi(theFileChooser.getResult());
-		synthAudioSource.setMidiFile(); };
+		synthAudioSource.setMidiFile();
+		};
 
 		addAndMakeVisible(playMidi);
 		playMidi.setButtonText("Play MIDI");

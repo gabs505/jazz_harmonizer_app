@@ -175,6 +175,7 @@ public:
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
 			const MidiMessageSequence* track = theMidiFile.getTrack(t);//pointer to selected track of MidiMessageSequence type
+			int lastTime= (int)(sampleRate * track->getEndTime());
 			for (int i = 0; i < track->getNumEvents(); i++) {
 				MidiMessage& m = track->getEventPointer(i)->message;//accessing single MidiMessage
 				if (m.isTempoMetaEvent()) {
@@ -182,26 +183,95 @@ public:
 				}
 
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
-				//int newSampleOffset = alignNoteToGrid(m, sampleOffset);
-				int newSampleOffset = sampleOffset;
-				midiBufferMelody->addEvent(m, newSampleOffset);
-				createMelodyBufferToProcess(m, newSampleOffset);//memory leak-zapis poza zakres
+				int newSampleOffset = alignNoteToGrid(m, sampleOffset);
+				//int newSampleOffset = sampleOffset;
+				if (newSampleOffset < lastTime) {
+					midiBufferMelody->addEvent(m, newSampleOffset);
+					createMelodyBufferToProcess(m, newSampleOffset);//memory leak-zapis poza zakres
+				}
+				else {
+					for (auto i = 1; i <= 16; i++)
+					{
+						newSampleOffset = (int)(((float)newSampleOffset / (float)quarterNoteLengthInSamples) * (float)quarterNoteLengthInSamples);
+						midiBufferMelody->addEvent(MidiMessage::allNotesOff(i), newSampleOffset);
+						midiBufferMelody->addEvent(MidiMessage::allSoundOff(i), newSampleOffset);
+						midiBufferMelody->addEvent(MidiMessage::allControllersOff(i), newSampleOffset);
+
+						melodyBufferToProcess->addEvent(MidiMessage::allNotesOff(i), newSampleOffset);
+						melodyBufferToProcess->addEvent(MidiMessage::allSoundOff(i), newSampleOffset);
+						melodyBufferToProcess->addEvent(MidiMessage::allControllersOff(i), newSampleOffset);
+					}
+				}
+				
 
 			}
 		}
-
+		//createMelodyBufferToProcess();
 	}
 
-	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {//taking to buffer only notes with more then quarter note pauses between
+	/*void createMelodyBufferToProcess() {
+		MidiMessage m; int time;
+		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
+			float division = (float)time / ((float)quarterNoteLengthInSamples * 2.0);
+			if (m.isNoteOn()) {
+				if (ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
+					melodyBufferToProcess->addEvent(m,round(division));
+					midiEventsTimes.push_back(round(division));
+				}
+				/*else if (midiEventsTimes.size()>0&&time>midiEventsTimes.back()&&std::count(midiEventsTimes.begin(),midiEventsTimes.end(),round(division))==0) {
 
+					melodyBufferToProcess->addEvent(m, round(division));
+					midiEventsTimes.push_back(round(division));
+
+				}
+
+			}
+			else if (m.isNoteOff())
+				melodyBufferToProcess->addEvent(m, time);
+		}
+
+	}*/
+
+	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {
+		
+		float halfNoteLengthInSamples = (float)quarterNoteLengthInSamples * 2.0;
+		float division = (float)sampleOffset / (float)halfNoteLengthInSamples;
+		int test;
+
+		/*if (m.isNoteOn()) {
+				int rDiv = round(division) * 2 * quarterNoteLengthInSamples;//w obrêbie której pó³nuty siê znajdujemy
+				int is = std::count(midiEventsTimes.begin(), midiEventsTimes.end(), round(division) * 2 * quarterNoteLengthInSamples);
+				
+				if (midiEventsTimes.size()!=0&&ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
+					melodyBufferToProcess->addEvent(m, round(division) * 2 * quarterNoteLengthInSamples);
+					midiEventsTimes.push_back(round(division) * 2 * quarterNoteLengthInSamples);
+				}
+				else if ( midiEventsTimes.size()&&sampleOffset > midiEventsTimes.back() && std::count(midiEventsTimes.begin(), midiEventsTimes.end(), floor(division) * 2 * quarterNoteLengthInSamples) == 0) {
+					melodyBufferToProcess->addEvent(m, round(division) * 2 * quarterNoteLengthInSamples);
+					midiEventsTimes.push_back(round(division) * 2 * quarterNoteLengthInSamples);
+
+				}
+
+			}*/
 		if (m.isNoteOn()) {
-			float division = (float)sampleOffset / ((float)quarterNoteLengthInSamples*2.0);
 			if (ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
-				melodyBufferToProcess->addEvent(m, sampleOffset);
-				midiEventsTimes.push_back(sampleOffset);
+				//sprawdza czy nuta znajduje siê blisko wartoœci pó³nuty
+				melodyBufferToProcess->addEvent(m, round(division) * (int)halfNoteLengthInSamples);
+				midiEventsTimes.push_back(round(division) * (int)halfNoteLengthInSamples);
+
+			}
+			else if(midiEventsTimes.size()!=0) {
+				//sprawdzamy czy na ostatni¹ pó³nutê przypad³a nuta z melodii,jeœli nie dodajemy najbli¿szy dŸwiêk na prawo
+				test = (int)(floor(division) * (int)halfNoteLengthInSamples);
+				if (std::count(midiEventsTimes.begin(), midiEventsTimes.end(), test) == 0) {
+					melodyBufferToProcess->addEvent(m, (int)(floor(division) *(int)halfNoteLengthInSamples));
+					midiEventsTimes.push_back((int)(floor(division) * (int)halfNoteLengthInSamples));
+				}
+
 			}
 
 		}
+		
 		else if (m.isNoteOff())
 			melodyBufferToProcess->addEvent(m, sampleOffset);
 	}
@@ -240,11 +310,18 @@ public:
 
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
 		sixteenthNoteLengthInSamples = round((float)quarterNoteLengthInSamples / 4.0);
-		if (m.isNoteOff())
-			return sampleOffset;
-		else if (m.isNoteOn()) {
+		/*if (m.isNoteOff()) {
+			if (sampleOffset > lastNoteOnTime)
+				return sampleOffset;
+			else
+				return sampleOffset + sixteenthNoteLengthInSamples;
+		}*/
+			
+		if (m.isNoteOnOrOff()) {
 			float division = (float)sampleOffset / (float)sixteenthNoteLengthInSamples;
-			return sampleOffset = round(division) * sixteenthNoteLengthInSamples;
+			sampleOffset = round(division) * sixteenthNoteLengthInSamples;
+			lastNoteOnTime = sampleOffset;
+			return sampleOffset;
 
 		}
 	}
@@ -342,6 +419,9 @@ public:
 	std::vector<int>chordsInProgressionIds;
 	std::vector<Chord*>chordsInProgression;
 	std::vector<int>midiEventsTimes;
+
+	int lastNoteOnTime;
+	int adjacentNoteOns=0;
 private:
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
