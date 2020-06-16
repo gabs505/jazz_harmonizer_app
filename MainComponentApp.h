@@ -68,6 +68,7 @@ public:
 		theFileChooser.browseForFileToOpen();
 		synthAudioSource.loadMidi(theFileChooser.getResult());
 		synthAudioSource.setMidiFile();
+		DBG("x");
 		};
 
 		addAndMakeVisible(playMidi);

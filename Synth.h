@@ -206,31 +206,8 @@ public:
 
 			}
 		}
-		//createMelodyBufferToProcess();
 	}
 
-	/*void createMelodyBufferToProcess() {
-		MidiMessage m; int time;
-		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
-			float division = (float)time / ((float)quarterNoteLengthInSamples * 2.0);
-			if (m.isNoteOn()) {
-				if (ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
-					melodyBufferToProcess->addEvent(m,round(division));
-					midiEventsTimes.push_back(round(division));
-				}
-				/*else if (midiEventsTimes.size()>0&&time>midiEventsTimes.back()&&std::count(midiEventsTimes.begin(),midiEventsTimes.end(),round(division))==0) {
-
-					melodyBufferToProcess->addEvent(m, round(division));
-					midiEventsTimes.push_back(round(division));
-
-				}
-
-			}
-			else if (m.isNoteOff())
-				melodyBufferToProcess->addEvent(m, time);
-		}
-
-	}*/
 
 	void createMelodyBufferToProcess(MidiMessage m, int sampleOffset) {
 		
@@ -238,21 +215,6 @@ public:
 		float division = (float)sampleOffset / (float)halfNoteLengthInSamples;
 		int test;
 
-		/*if (m.isNoteOn()) {
-				int rDiv = round(division) * 2 * quarterNoteLengthInSamples;//w obrêbie której pó³nuty siê znajdujemy
-				int is = std::count(midiEventsTimes.begin(), midiEventsTimes.end(), round(division) * 2 * quarterNoteLengthInSamples);
-				
-				if (midiEventsTimes.size()!=0&&ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
-					melodyBufferToProcess->addEvent(m, round(division) * 2 * quarterNoteLengthInSamples);
-					midiEventsTimes.push_back(round(division) * 2 * quarterNoteLengthInSamples);
-				}
-				else if ( midiEventsTimes.size()&&sampleOffset > midiEventsTimes.back() && std::count(midiEventsTimes.begin(), midiEventsTimes.end(), floor(division) * 2 * quarterNoteLengthInSamples) == 0) {
-					melodyBufferToProcess->addEvent(m, round(division) * 2 * quarterNoteLengthInSamples);
-					midiEventsTimes.push_back(round(division) * 2 * quarterNoteLengthInSamples);
-
-				}
-
-			}*/
 		if (m.isNoteOn()) {
 			if (ceil(division) - division < 0.1 || abs(floor(division) - division) < 0.1 || division == 0) {
 				//sprawdza czy nuta znajduje siê blisko wartoœci pó³nuty
@@ -273,7 +235,7 @@ public:
 		}
 		
 		else if (m.isNoteOff())
-			melodyBufferToProcess->addEvent(m, sampleOffset);
+			melodyBufferToProcess->addEvent(m, (int)ceil(division)*(int)halfNoteLengthInSamples);
 	}
 
 	void playMelody() {
@@ -310,12 +272,6 @@ public:
 
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
 		sixteenthNoteLengthInSamples = round((float)quarterNoteLengthInSamples / 4.0);
-		/*if (m.isNoteOff()) {
-			if (sampleOffset > lastNoteOnTime)
-				return sampleOffset;
-			else
-				return sampleOffset + sixteenthNoteLengthInSamples;
-		}*/
 			
 		if (m.isNoteOnOrOff()) {
 			float division = (float)sampleOffset / (float)sixteenthNoteLengthInSamples;
@@ -388,8 +344,8 @@ public:
 
 	void changeChordProgressionFromGUI(String menuId, int chordId) {
 		midiBufferChords->clear();
-		/*int menuIdInt = menuId.getIntValue();
-		chordsInProgression[menuIdInt] = possibleChordsToEachNoteMap[notesToProcessVector[menuIdInt]][chordId];
+		int menuIdInt = menuId.getIntValue();
+		chordsInProgression[menuIdInt] = possibleChordsToEachNoteMap[menuIdInt][chordId];
 		MidiMessage m; int time; int idx = 0;
 
 		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
@@ -399,7 +355,7 @@ public:
 				idx++;
 			}
 
-		}*/
+		}
 	}
 
 
@@ -414,20 +370,20 @@ public:
 	int bufferLength;
 	int currentSample;
 	int sixteenthNoteLengthInSamples;
-	std::vector<std::pair<int,int>>notesToProcessVector;
-	std::map<int, std::vector<Chord*>>possibleChordsToEachNoteMap; //melody notes indexes with fitting chords vector
+	std::vector<std::pair<int,int>>notesToProcessVector;//vector of pairs (bar index,note number)
+	std::map<int, std::vector<Chord*>>possibleChordsToEachNoteMap; //melody notes indexes with fitting chords vector e.g. key:60 ,value:Chord*
 	std::vector<int>chordsInProgressionIds;
 	std::vector<Chord*>chordsInProgression;
-	std::vector<int>midiEventsTimes;
+	std::vector<int>midiEventsTimes;//times for notesToProcess vector
 
 	int lastNoteOnTime;
 	int adjacentNoteOns=0;
 private:
+
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
 	MidiFile theMidiFile;
 	int counter = 0;
-
 	int quarterNoteLengthInSamples;
 
 	ChordCreator* chordCreator = new ChordCreator();

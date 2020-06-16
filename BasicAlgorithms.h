@@ -99,48 +99,54 @@ public:
 			
 		}
 		return matchedScaleName;
-		/*
-		if (detectedSharpsIndexes.size() != 0)
-			return scaleNames[detectedSharpsIndexes.back() + 1];
-		else
-			return scaleNames[0];
-		*/
+	
 	}
 
-	void checkForHarmonicTriad(std::map<int, std::vector<Chord*>>chordsMap, std::vector<Chord*>chordsInProgression,std::vector<int>chordsInProgressionIds) {
-		std::vector<std::string>functionNames = std::vector<std::string>(chordsMap.size(),"none");
-		std::vector<int>chosenChordIndexes= std::vector<int>(chordsMap.size(), -1);
-		int idx = 0;
-		int chosenChordIdx = 0;
+	void checkForHarmonicTriad(std::map<int, std::vector<Chord*>>&chordsMap, std::vector<Chord*>&chordsInProgression,std::vector<int>&chordsInProgressionIds) {
+		int i = 0;
+		int j = 0;
+		int k = 0;
+		int l = 0;
+
 		for (auto it = chordsMap.begin(); it != chordsMap.end(); ++it) {
-			for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-				if ((*it2)->specialFunction == "T" || (*it2)->specialFunction == "S" || (*it2)->specialFunction == "D") {
-					functionNames[idx]=(*it2)->specialFunction;
-					chosenChordIndexes[idx] = chosenChordIdx;
-				}
-				chosenChordIdx++;
-			}
-			idx++;
-		}
+			if (k < chordsMap.size() - 3) {
+				i = 0;
+				for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {//iterating through k chord vector
+					j = 0;
+					if ((*it2)->specialFunction=="T"&& chordsInProgressionIds[i]==-1) {
+						for (auto it3 = chordsMap[k + 1].begin(); it3 != chordsMap[k + 1].end(); ++it3) {//iterating through k+1 vector
+							if ((*it3)->specialFunction=="S" && chordsInProgressionIds[j] == -1) {
+								l = 0;
+								for (auto it4 = chordsMap[k + 2].begin(); it4 != chordsMap[k + 2].end(); ++it4) {//iterating through k+2 vector
+									
+									if ((*it4)->specialFunction=="D" && chordsInProgressionIds[l] == -1) {
 
-		idx = 0;
-		for (auto it = functionNames.begin(); it!=functionNames.end(); ++it) {
-			if (idx < functionNames.size() - 3) {
-				if (*it == "T") {
-					if (functionNames[idx + 1] == "S" && functionNames[idx + 2] == "D") {
-						chordsInProgression[idx] = chordsMap[idx][chosenChordIndexes[idx]];
-						chordsInProgressionIds[idx] = chosenChordIndexes[idx];
+										chordsInProgression[k] = chordsMap[k][i];
+										chordsInProgressionIds[k] = i;
+										
 
-						chordsInProgression[idx+1] = chordsMap[idx+1][chosenChordIndexes[idx+1]];
-						chordsInProgressionIds[idx+1] = chosenChordIndexes[idx+1];
+										chordsInProgression[k + 1] = chordsMap[k + 1][j];
+										chordsInProgressionIds[k + 1] = j;
+										
 
-						chordsInProgression[idx+2] = chordsMap[idx+2][chosenChordIndexes[idx+2]];
-						chordsInProgressionIds[idx+2] = chosenChordIndexes[idx+2];
+										chordsInProgression[k + 2] = chordsMap[k + 2][l];
+										chordsInProgressionIds[k + 2] = l;
+										
+									}
+									l++;
+								}
+							}
+							j++;
+
+						}
 					}
+
+					i++;
+
 				}
+
 			}
-			
-			idx++;
+			k++;
 		}
 	}
 

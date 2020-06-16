@@ -4,11 +4,12 @@
 #include <JuceHeader.h>
 #include "BasicAlgorithms.h"
 #include "Melody.h"
+#include "otherVariables.h"
 #include <vector>
 #include <set>
 
-std::vector<std::string>sharps = { "C","C#","D","D#","E","F","F#","G","G#","A","A#","B" };
-std::vector<std::string>flats = { "C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B" };
+
+
 
 class Scale {
 public:
@@ -22,7 +23,7 @@ public:
 	std::vector<std::string>notesNames;
 	std::string mode; //minor or major
 	std::string type;//sharp or flat or none
-	std::vector<std::string>scaleChords;//vector containing chord for each step of scale
+	std::vector<std::string>scaleChords;//vector containing chord types for each step of scale
 
 
 	void createScaleNotes(int primeNumber) {
@@ -34,7 +35,7 @@ class MajorScale :public Scale {
 public:
 	MajorScale(std::string name, std::string t, int primeNumber) :Scale(name, t) {
 		createScaleNotes(primeNumber);
-		scaleChords = { "major","minor","minor","major","major","minor","diminished" };
+		scaleChords = { "maj7","m7","m7","maj7","7","m7","m7b5" };
 
 	}
 
@@ -146,16 +147,15 @@ public:
 		}
 
 		return matchCounts;
-
-
-
 	}
 
-	void findScaleMatches(Melody* &melody) {
+	void findScaleMatches(Melody* &melody) {//returns vector of scales for each bar
 		matchedScales.clear();
+
 		int mostFrequentMelodyNote = basicAlgorithms.findMostFrequentMelodyNote(melody->melodyNotesVector);
 		int idx = 0;
 		int i = 0;
+
 		for (auto it = melody->melodyNotesVectorToScaleDetection.begin(); it != melody->melodyNotesVectorToScaleDetection.end(); ++it) {
 			if (*it == -1) {
 				std::vector<int>notesRange=basicAlgorithms.slice(melody->melodyNotesVectorToScaleDetection,idx,i-1); //getting subvector from vector
@@ -169,13 +169,28 @@ public:
 						//checking if scale continuation is possible
 						int numOfCommonNotes = 0;//number of common notes with scale in previous bar
 						for (auto it2 = notesRangeSet.begin(); it2 != notesRangeSet.end(); ++it2) {
-							if (std::count(matchedScales.back()->notesMidiNumbers.begin(), matchedScales.back()->notesMidiNumbers.end(), *it2)) {
+							if (std::count(matchedScales.back()->notesMidiNumbers.begin(), matchedScales.back()->notesMidiNumbers.end(), 60+(*it2)%12)) {
 								numOfCommonNotes++;
 							}
 						}
-						if (numOfCommonNotes==notesRangeSet.size()) {
+						
+						int numOfCommonNotes2 = 0;
+						if (matchedScales.size() > 2) {
+							for (auto it2 = notesRangeSet.begin(); it2 != notesRangeSet.end(); ++it2) {
+								if (std::count(matchedScales[matchedScales.size()-2]->notesMidiNumbers.begin(), matchedScales[matchedScales.size() - 2]->notesMidiNumbers.end(), 60 + (*it2) % 12)) {
+									numOfCommonNotes2++;
+								}
+							}
+						}
+
+
+						if (numOfCommonNotes==notesRangeSet.size()) {//if all notes from current bar exist in previous bar scale, continue scale in current bar
 							matchedScales.push_back(matchedScales.back());
 						}
+						else if (numOfCommonNotes2 == notesRangeSet.size()) {
+							matchedScales.push_back(matchedScales[matchedScales.size()-2]);
+						}
+
 						else {
 							for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {
 								if ((*it2)->scaleName == matchedScale) {
@@ -187,7 +202,8 @@ public:
 
 				}
 				else {
-					for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {//matching first and main scale based on last note of the melody
+					//matching first and main scale based on last note of the melody
+					for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {
 						if ((*it2)->notesMidiNumbers[0] == melody->melodyNotesVector.back()) {
 							matchedScales.push_back(*it2);
 						}
@@ -198,13 +214,42 @@ public:
 			i++;
 		}
 		
-		
+		recheckScaleMatches();
+		DBG("chosen scales:");
 		for(auto it = matchedScales.begin(); it != matchedScales.end(); ++it) {
 			DBG((*it)->scaleName);
 		}
 	}
 
-	std::vector<std::string> scaleMatchingByCommonNotes(std::set<int>melodyNotesSet) {//matches scale to melody
+	//checking if scale doesnt change beacause of passing notes
+	void recheckScaleMatches() {
+		int i = 0;
+		if (matchedScales.size() > 2) {
+			for (auto it = matchedScales.begin() + 1; it != matchedScales.end() - 1; ++it) {
+
+				int firstPrime = matchedScales[i]->notesMidiNumbers[0];
+				int secondPrime = (*it)->notesMidiNumbers[0];
+				int thirdPrime = matchedScales[i + 2]->notesMidiNumbers[0];
+
+				if ((*it)->scaleName != matchedScales[i]->scaleName &&
+					(matchedScales[i + 2]->scaleName == matchedScales[i]->scaleName ||
+						firstPrime == 60 + (thirdPrime - 7) % 12 ||
+						firstPrime == 60 + (thirdPrime + 7) % 12)) {
+
+					if (firstPrime % 12 != (secondPrime + 7) % 12 && firstPrime % 12 != (secondPrime - 7) % 12) {
+						*it = matchedScales[i];
+					}
+				}
+				i++;
+
+
+			}
+
+		}
+		
+	}
+
+	std::vector<std::string> scaleMatchingByCommonNotes(std::set<int>melodyNotesSet) {//matches scale to melody based on number of common notes
 		std::vector<int>matchCountsVector = countMatches(melodyNotesSet);//vector with number of matches for each scale
 		std::vector<int>maxCounts;//vector with indexes of scales that have max number of counts
 		int maxIndex = std::max_element(matchCountsVector.begin(), matchCountsVector.end()) - matchCountsVector.begin();
@@ -218,23 +263,14 @@ public:
 		for (auto it = maxCounts.begin(); it != maxCounts.end(); ++it) {
 			matchedScales.push_back(majorScalesVector[*it]->scaleName);
 		}
-		//Scale* matchedScale = majorScalesVector[maxCounts[0]];//scale fit to melody
 		return matchedScales;
 		
 
 	}
 
 	//========================
-	std::vector<Scale*>majorScalesVector;
-
-	std::vector<Scale*>matchedScales;
-	//========================
-	std::map<int, std::vector < int >> scalesMap;
-	std::map<int, std::string> scalesIndexToName;
-	std::map<std::string, int> scalesMatches; //iloœæ dŸwiêków wspólnych miêdzy melodi¹ a kolejnymi skalami
-	std::string matchedScaleName;
-	int matchedScaleIndex;
-	std::map<int, std::string> noteNumberToNoteNameMap;
-
+	std::vector<Scale*>majorScalesVector;//vector of majorScale objects
+	std::vector<Scale*>matchedScales;//scales matched for each two bars
+	
 	BasicAlgorithms basicAlgorithms;
 };

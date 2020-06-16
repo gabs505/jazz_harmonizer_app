@@ -32,15 +32,18 @@ public:
 	void setChordNotes() {
 		std::vector<int>intervals;
 		chordNotesMidiNumbers.push_back(primeMidiNumber);
-		if (mode == "major") {
-			intervals = { 4,7 };
+		if (mode == "maj7") {
+			intervals = { 4,7,11 };//, 14, 21};//9,13
 
 		}
-		else if (mode == "minor") {
-			intervals = { 3,7 };
+		else if (mode == "m7") {
+			intervals = { 3,7,10 };//, 17};//11
 		}
-		else if (mode == "diminished") {
-			intervals = { 3,6 };
+		else if (mode == "7") {
+			intervals = { 4,7,10 };
+		}
+		else if (mode == "m7b5") {
+			intervals = { 3,6,10 };
 		}
 
 		for (auto it = intervals.begin(); it != intervals.end(); ++it)
