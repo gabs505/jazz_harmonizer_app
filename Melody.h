@@ -61,18 +61,18 @@ public:
 		int j = 0;
 		for (MidiBuffer::Iterator i(*melodyNotes); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
-				
+
 				DBG("something");
 				if (time >= (int)actualBar) {
 					melodyNotesVectorToScaleDetection.push_back(-1);
-					actualBar +=barLength;
+					actualBar += barLength;
 				}
 				melodyNotesVectorToScaleDetection.push_back(m.getNoteNumber());
 				j++;
 			}
 		}
 		melodyNotesVectorToScaleDetection.push_back(-1);//adding -1 to the end
-		
+
 	}
 
 	void transposeMelodyNotes() {
@@ -90,7 +90,7 @@ public:
 	std::vector<int>melodyNotesVector; //all melody notes vector
 	std::vector<int>melodyNotesVectorToScaleDetection;//notes divided on bars by (-1) sign
 	std::set<int>melodyNotesSet;//unique melody notes set
-	std::vector<std::pair<int,int>>melodyNotesToProcessVector; //melody notes to which chord should be added
+	std::vector<std::pair<int, int>>melodyNotesToProcessVector; //melody notes to which chord should be added
 
 	std::vector<Chord*>currentScaleChords;//chords for matched scale
 	std::map<std::string, std::vector<Chord*>>scalesChordsMap;

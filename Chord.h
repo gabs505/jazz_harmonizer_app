@@ -1,4 +1,3 @@
-
 #pragma once
 
 #include <JuceHeader.h>
@@ -58,7 +57,7 @@ public:
 			priority = 10;
 		else if (step == 3 || step == 7)
 			priority = 1;
-		
+
 	}
 
 	void updateSpecialFunction() {

@@ -143,7 +143,7 @@ public:
 					for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {//iterating through k chord vector
 						noteNumber = 60 + ((*it2)->primeMidiNumber + 7) % 12;
 
-						if (chordsInProgression[k - 1]->primeMidiNumber == noteNumber) {
+						if (chordsInProgression[k - 1]->primeMidiNumber == noteNumber && chordsInProgression[k-1]->priority!=1) {
 
 							chordsInProgression[k] = chordsMap[k][i];
 							chordsInProgressionIds[k] = i;
@@ -159,7 +159,7 @@ public:
 						noteNumber = 60 + ((*it2)->primeMidiNumber + 7) % 12;
 						j = 0;
 						for (auto it3 = chordsMap[k - 1].begin(); it3 != chordsMap[k - 1].end(); it3++) {//iterating through k-1 chord vector
-							if ((*it3)->primeMidiNumber == noteNumber) {
+							if ((*it3)->primeMidiNumber == noteNumber&&(*it3)->priority!=1){
 								chordsInProgression[k] = chordsMap[k][i];
 								chordsInProgressionIds[k] = i;
 
@@ -195,7 +195,7 @@ public:
 					for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {//iterating through k chord vector
 						noteNumber = 60 + ((*it2)->primeMidiNumber + 5) % 12;
 
-						if (chordsInProgression[k - 1]->primeMidiNumber == noteNumber) {
+						if (chordsInProgression[k - 1]->primeMidiNumber == noteNumber&&chordsInProgression[k-1]->priority!=1) {
 
 							chordsInProgression[k] = chordsMap[k][i];
 							chordsInProgressionIds[k] = i;
@@ -211,7 +211,7 @@ public:
 						noteNumber = 60 + ((*it2)->primeMidiNumber + 5) % 12;
 						j = 0;
 						for (auto it3 = chordsMap[k - 1].begin(); it3 != chordsMap[k - 1].end(); it3++) {//iterating through k-1 chord vector
-							if ((*it3)->primeMidiNumber == noteNumber) {
+							if ((*it3)->primeMidiNumber == noteNumber && (*it3)->priority != 1) {
 								chordsInProgression[k] = chordsMap[k][i];
 								chordsInProgressionIds[k] = i;
 
