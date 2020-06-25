@@ -253,12 +253,22 @@ public:
 	void playChordsAndMelody() {
 		MidiMessage m; int time;
 		currentMidiBuffer->clear();
-		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
-			currentMidiBuffer->addEvent(m, time);
-		}
+	
 		for (MidiBuffer::Iterator i(*midiBufferChords); i.getNextEvent(m, time);) {
 			currentMidiBuffer->addEvent(m, time);
 		}
+
+		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
+			if (m.isNoteOn()) {
+				MidiMessage transposedMidiMessage = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 12, m.getVelocity());
+				currentMidiBuffer->addEvent(transposedMidiMessage, time);
+			}
+			else {
+				currentMidiBuffer->addEvent(m, time);
+			}
+
+		}
+
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 	}

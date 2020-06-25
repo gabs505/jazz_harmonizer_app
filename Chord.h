@@ -43,6 +43,9 @@ public:
 	Score* score=new Score();
 	int overallScore;
 
+	std::vector<Chord*> pointersToNextChordsFromProgression;
+	std::string belongsToProgession = "";//name of progression to which chord belongs
+
 	void setChordNotes() {
 		std::vector<int>intervals;
 		chordNotesMidiNumbers.push_back(primeMidiNumber);

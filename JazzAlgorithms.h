@@ -57,6 +57,15 @@ public:
 										(*it2)->score->scoreForMajor251 += increment;//incrementing II chord
 										(*it3)->score->scoreForMajor251 += increment;
 										(*it4)->score->scoreForMajor251 += increment;
+
+										//adding pointers to next chords from II-V-I progression
+										(*it2)->pointersToNextChordsFromProgression.push_back(*it3);
+										(*it2)->pointersToNextChordsFromProgression.push_back(*it4);
+
+										//info to which progression certain chord belongs
+										(*it2)->belongsToProgession = "major251";
+										(*it3)->belongsToProgession = "major251";
+										(*it4)->belongsToProgession = "major251";
 									}
 									l++;
 								}
@@ -118,6 +127,15 @@ public:
 										(*it2)->score->scoreForMinor251 += increment;//incrementing II chord
 										(*it3)->score->scoreForMinor251 += increment;
 										(*it4)->score->scoreForMinor251 += increment;
+
+										//adding pointers to next chords from II-V-I progression
+										(*it2)->pointersToNextChordsFromProgression.push_back(*it3);
+										(*it2)->pointersToNextChordsFromProgression.push_back(*it4);
+
+										//info to which progression certain chord belongs
+										(*it2)->belongsToProgession = "minor251";
+										(*it3)->belongsToProgession = "minor251";
+										(*it4)->belongsToProgession = "minor251";
 									}
 									l++;
 								}
@@ -162,6 +180,14 @@ public:
 								
 								(*it2)->score->scoreForFifthDown += increment;
 								(*it3)->score->scoreForFifthDown += increment;
+
+								//adding pointers to next chords from V-I progression
+								(*it2)->pointersToNextChordsFromProgression.push_back(*it3);
+
+								//info to which progression certain chord belongs
+								(*it2)->belongsToProgession = "fifthDown";
+								(*it3)->belongsToProgession = "fifthDown";
+								
 								
 							}
 							j++;
@@ -206,6 +232,13 @@ public:
 
 								(*it2)->score->scoreForFourthDown += increment;
 								(*it3)->score->scoreForFourthDown += increment;
+
+								//adding pointers to next chords from IV-I progression
+								(*it2)->pointersToNextChordsFromProgression.push_back(*it3);
+
+								//info to which progression certain chord belongs
+								(*it2)->belongsToProgession = "fourthDown";
+								(*it3)->belongsToProgession = "fourthDown";
 							}
 							j++;
 						}
