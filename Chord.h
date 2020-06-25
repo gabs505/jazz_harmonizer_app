@@ -3,11 +3,24 @@
 #include <JuceHeader.h>
 #include <vector>
 #include <set>
+#include "Score.h"
 
 class Chord {
 public:
 	Chord() {
 
+	}
+	~Chord() {
+	}
+	Chord(Chord* chord) {
+		primeNote = chord->primeNote;
+		primeMidiNumber = chord->primeMidiNumber;
+		mode = chord->mode;
+		name = primeNote + mode;
+		step = chord->step;
+		updateSpecialFunction();
+		updatePriority();
+		setChordNotes();
 	}
 	Chord(std::string prime, int pn, std::string m, int st) {
 		primeNote = prime;
@@ -27,16 +40,18 @@ public:
 	std::vector<int>chordNotesMidiNumbers;
 	int priority;//priority of choice: 1, 10 or 100
 	int step;//step of scale
+	Score* score=new Score();
+	int overallScore;
 
 	void setChordNotes() {
 		std::vector<int>intervals;
 		chordNotesMidiNumbers.push_back(primeMidiNumber);
 		if (mode == "maj7") {
-			intervals = { 4,7,11 };//, 14, 21};//9,13
+			intervals = { 4,7,11,14, 21};//9,13
 
 		}
 		else if (mode == "m7") {
-			intervals = { 3,7,10 };//, 17};//11
+			intervals = { 3,7,10,17};//11
 		}
 		else if (mode == "7") {
 			intervals = { 4,7,10 };
@@ -51,13 +66,14 @@ public:
 	}
 
 	void updatePriority() {
-		if (step == 1 || step == 4 || step == 5)
+		/*if (step == 1 || step == 4 || step == 5)
 			priority = 100;
 		else if (step == 2 || step == 6)
 			priority = 10;
 		else if (step == 3 || step == 7)
 			priority = 1;
-
+		*/
+		priority = 0;
 	}
 
 	void updateSpecialFunction() {
@@ -69,5 +85,9 @@ public:
 			specialFunction = "D";
 		else
 			specialFunction = "none";
+	}
+
+	void countOverallScore() {
+		overallScore = score->addScore();
 	}
 };

@@ -16,9 +16,9 @@ class ChordCreator {
 public:
 
 	void setChordsToScaleMap(Melody*& melody) {//creating map "scale-[7]chords" e.g. key:"C", value:vector<Chord*>
-		for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); ++it) {
-			setCurrentScaleChords(*it, melody);
-		}
+for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); ++it) {
+	setCurrentScaleChords(*it, melody);
+}
 	}
 
 	void setCurrentScaleChords(Scale* matchedScale, Melody*& melody) {//creates a vector of chord objects for each scale step
@@ -57,6 +57,7 @@ public:
 	void createChordProgressionMatchesMap(Melody*& melody) {
 		int melodyNoteNumber = 0;
 		int barIdx = 0;
+		int chordToneNumber;
 		for (auto it = melody->melodyNotesToProcessVector.begin(); it != melody->melodyNotesToProcessVector.end(); ++it) {
 
 			barIdx = it->first;
@@ -64,10 +65,22 @@ public:
 			int idx = 0;
 			std::vector<Chord*>currentBarScaleChords = melody->scalesChordsMap[scales.matchedScales[barIdx]->scaleName];
 			for (auto it2 = currentBarScaleChords.begin(); it2 != currentBarScaleChords.end(); it2++) {//iteration through current scale chords vector
-
+				chordToneNumber = 1;
 				for (auto it3 = (*it2)->chordNotesMidiNumbers.begin(); it3 != (*it2)->chordNotesMidiNumbers.end(); ++it3) {//iterating through chord's notes
-					if (*it3 % 12 == (it->second) % 12)
-						matchedChords.push_back(melody->scalesChordsMap[scales.matchedScales[barIdx]->scaleName][idx]);
+					if (*it3 % 12 == (it->second) % 12) {
+						Chord* chord = new Chord(melody->scalesChordsMap[scales.matchedScales[barIdx]->scaleName][idx]);
+						if (chordToneNumber <= 5) {
+							chord->priority == 100;
+						}
+						else if (chordToneNumber <= 9) {
+							chord->priority == 10;
+						}
+						else {
+							chord->priority = 1;
+						}
+						matchedChords.push_back(chord);
+					}
+					chordToneNumber += 2;
 				}
 				idx++;
 			}
@@ -104,29 +117,44 @@ public:
 
 	}
 
+	void countScoreForEachPossibleChord(Melody*& melody) {
+		for (auto it = melody->chordProgressionMatchesMap.begin(); it != melody->chordProgressionMatchesMap.end(); ++it) {
+			for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+				(*it2)->countOverallScore();
+			}
+		}
+	}
+
+	void matchChordInProgressionBasedOnScore(Melody*& melody) {
+		int maxScore = 0;
+		int i = 0; int j = 0;
+		int chordId = 0;
+		
+		for (auto it = melody->chordProgressionMatchesMap.begin(); it != melody->chordProgressionMatchesMap.end(); ++it) {
+			maxScore = 0;
+			Chord* matchedChord = new Chord();
+			j = 0;
+			for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+				if ((*it2)->overallScore >= maxScore) {
+					maxScore = (*it2)->overallScore;
+					matchedChord = *it2;
+					chordId = j;
+				}
+				j++;
+			}
+			melody->chordsInProgression[i] = new Chord(matchedChord);
+			melody->chordsInProgressionIds[i] = chordId;
+			i++;
+			
+		}
+	}
+
 	//match final chord progression based on algorithms
 	void matchChordProgression(Melody*& melody) {
-		//basicAlgorithms.checkForHarmonicTriad(melody->chordProgressionMatchesMap, melody->chordsInProgression, melody->chordsInProgressionIds);
-		jazzAlgorithms.searchForMajor251(melody->chordProgressionMatchesMap, melody->chordsInProgression, melody->chordsInProgressionIds);
-		jazzAlgorithms.searchForMinor251(melody->chordProgressionMatchesMap, melody->chordsInProgression, melody->chordsInProgressionIds);
-		basicAlgorithms.checkForHarmonicTriad(melody->chordProgressionMatchesMap, melody->chordsInProgression, melody->chordsInProgressionIds);
-		jazzAlgorithms.searchForFifthDownMovement(melody->chordProgressionMatchesMap, melody->chordsInProgression, melody->chordsInProgressionIds);
-		jazzAlgorithms.searchForFourthDownMovement(melody->chordProgressionMatchesMap, melody->chordsInProgression, melody->chordsInProgressionIds);
-		int idx = 0;
-
-		std::map<int, Chord*>matchedChordDataVector;
-		std::map<int, Chord*>::iterator it2;
-		for (auto it = melody->chordProgressionMatchesMap.begin(); it != melody->chordProgressionMatchesMap.end(); ++it) {
-			if (melody->chordsInProgressionIds[idx] == -1) {
-				matchedChordDataVector = basicAlgorithms.chooseChordBasedOnPriority(it->second);
-				it2 = matchedChordDataVector.begin();
-				melody->chordsInProgressionIds[idx] = it2->first;
-				melody->chordsInProgression[idx] = it2->second;
-			}
-
-			idx++;
-
-		}
+		
+		jazzAlgorithms.searchForHarmonicStructures(melody->chordProgressionMatchesMap);
+		countScoreForEachPossibleChord(melody);
+		matchChordInProgressionBasedOnScore(melody);
 
 	}
 
@@ -134,6 +162,7 @@ public:
 
 	void addChordToMidiBuffer(MidiMessage m, int time, Chord* matchedChord, MidiBuffer*& midiBufferChords) {
 		int add = 0;
+		
 		int minusValue;
 		if (matchedChord->chordNotesMidiNumbers.size() > 3) {
 			minusValue = 2;
@@ -141,24 +170,27 @@ public:
 		else {
 			minusValue = 0;
 		}
-		for (auto it = matchedChord->chordNotesMidiNumbers.begin(); it != matchedChord->chordNotesMidiNumbers.end() - minusValue; it++) {
-			if (m.isNoteOn()) {
-				MidiMessage message = MidiMessage::noteOn(m.getChannel(), *it, (uint8)70);
-				midiBufferChords->addEvent(message, time);
-				add++;
+		if (matchedChord->name != "") {
+			for (auto it = matchedChord->chordNotesMidiNumbers.begin(); it != matchedChord->chordNotesMidiNumbers.end() - minusValue; it++) {
+				if (m.isNoteOn()) {
+					MidiMessage message = MidiMessage::noteOn(m.getChannel(), *it, (uint8)70);
+					midiBufferChords->addEvent(message, time);
 
-			}
-			else if (m.isNoteOff()) {
-				for (auto i = 1; i <= 16; i++)
-				{
-					midiBufferChords->addEvent(MidiMessage::allNotesOff(i), time + add - 10);
-					midiBufferChords->addEvent(MidiMessage::allSoundOff(i), time + add - 10);
-					midiBufferChords->addEvent(MidiMessage::allControllersOff(i), time + add - 10);
+
 				}
-				add++;
+				else if (m.isNoteOff()) {
+					for (auto i = 1; i <= 16; i++)
+					{
+						midiBufferChords->addEvent(MidiMessage::allNotesOff(i), time + add - 10);
+						midiBufferChords->addEvent(MidiMessage::allSoundOff(i), time + add - 10);
+						midiBufferChords->addEvent(MidiMessage::allControllersOff(i), time + add - 10);
+					}
+					add++;
 
+				}
 			}
 		}
+	
 	}
 
 
