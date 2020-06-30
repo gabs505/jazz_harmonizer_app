@@ -8,6 +8,7 @@
 #include "BasicAlgorithms.h"
 #include "JazzAlgorithms.h"
 #include "ScoringAlgorithms.h"
+#include "OtherAlgorithms.h"
 
 
 
@@ -51,6 +52,7 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 		melody->setMelodyNotesVectorToScaleDetection(melodyNotes, quarterNoteLengthInSamples);
 		melody->transposeMelodyNotes();
 		scales.findScaleMatches(melody);
+		
 
 	}
 
@@ -127,6 +129,10 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 			Chord* matchedChord = new Chord();
 			int chordId=0;
 			
+			otherAlgorithms.checkForChordContinuity(melody, i);
+			otherAlgorithms.avoidChoosingDominantOnWeakBeat(melody, i);
+			otherAlgorithms.continueTonicFrom251Progression(melody, i);
+
 			std::pair<Chord*, int> chosenChordData = scoringAlgorithms.matchChordBasedOnScore(it->second);
 			matchedChord = chosenChordData.first;
 			chordId = chosenChordData.second;
@@ -156,9 +162,10 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 	void matchChordProgression(Melody*& melody) {
 		
 		jazzAlgorithms.searchForHarmonicStructures(melody->chordProgressionMatchesMap);
+		basicAlgorithms.applyMajorScheme(melody->chordProgressionMatchesMap, scales.scaleBreakpointsIndexes);
 		scoringAlgorithms.countScoreForEachPossibleChord(melody);
 		matchChordInProgression(melody);
-
+		
 	}
 
 
@@ -175,7 +182,12 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 		}
 		if (matchedChord->name != "") {
 			for (auto it = matchedChord->chordNotesMidiNumbers.begin(); it != matchedChord->chordNotesMidiNumbers.end() - minusValue; it++) {
+				//playing higher notes in lower octave
 				if (m.isNoteOn()) {
+					if (*it > 80) {
+						*it -= 12;
+					}
+				//-------------------------------------
 					MidiMessage message = MidiMessage::noteOn(m.getChannel(), *it, (uint8)70);
 					midiBufferChords->addEvent(message, time);
 
@@ -244,5 +256,6 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 	BasicAlgorithms basicAlgorithms;
 	JazzAlgorithms jazzAlgorithms;
 	ScoringAlgorithms scoringAlgorithms;
+	OtherAlgorithms otherAlgorithms;
 
 };

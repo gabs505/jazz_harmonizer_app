@@ -219,6 +219,21 @@ public:
 		for(auto it = matchedScales.begin(); it != matchedScales.end(); ++it) {
 			DBG((*it)->scaleName);
 		}
+
+		detectScaleBreakpoints();
+	}
+
+	//saves indexes of point on which scale changes to vector
+	void detectScaleBreakpoints() {
+		std::string lastScaleName = matchedScales[0]->scaleName;
+		int i = 0;
+		for (auto it = matchedScales.begin(); it != matchedScales.end(); ++it) {
+			if ((*it)->scaleName != lastScaleName) {
+				lastScaleName = (*it)->scaleName;
+				scaleBreakpointsIndexes.push_back(4*i-1);
+			}
+			i++;
+		}
 	}
 
 	//checking if scale doesnt change beacause of passing notes
@@ -271,6 +286,7 @@ public:
 	//========================
 	std::vector<Scale*>majorScalesVector;//vector of majorScale objects
 	std::vector<Scale*>matchedScales;//scales matched for each two bars
+	std::vector<int>scaleBreakpointsIndexes;//indexes of scale changes
 	
 	BasicAlgorithms basicAlgorithms;
 };

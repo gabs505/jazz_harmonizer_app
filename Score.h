@@ -11,10 +11,11 @@ public:
 		scoreForFourthDown = 0;
 		otherScore = 0;
 		scoreForMajor251Long = 0;
+		scoreForMajorScheme = 0;
 	}
 
 	int addScore() {
-		return scoreForMajor251 + scoreForMinor251 + scoreForFifthDown + scoreForFourthDown + otherScore;// +scoreForMajor251Long;
+		return scoreForMajor251 + scoreForMinor251 + scoreForFifthDown + scoreForFourthDown + scoreForMajorScheme + otherScore;// +scoreForMajor251Long;
 	}
 
 	int scoreForMajor251;
@@ -23,5 +24,6 @@ public:
 	int scoreForFifthDown;
 	int scoreForFourthDown;
 	int otherScore;
+	int scoreForMajorScheme;
 	int overallScore;
 };

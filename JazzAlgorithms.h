@@ -52,7 +52,7 @@ public:
 											increment = 6;
 										}
 										else {
-											increment = 3;
+											increment = 5;
 										}
 
 										(*it2)->score->scoreForMajor251 += increment;//incrementing II chord
@@ -64,9 +64,9 @@ public:
 										(*it2)->pointersToNextChordsFromProgression.push_back(*it4);
 
 										//info to which progression certain chord belongs
-										(*it2)->belongsToProgession = "major251";
-										(*it3)->belongsToProgession = "major251";
-										(*it4)->belongsToProgession = "major251";
+										(*it2)->belongsToProgession.push_back("major251");
+										(*it3)->belongsToProgession.push_back("major251");
+										(*it4)->belongsToProgession.push_back("major251");
 									}
 									l++;
 								}
@@ -206,7 +206,7 @@ public:
 											increment = 5;
 										}
 										else {
-											increment = 3;
+											increment = 5;
 										}
 
 										(*it2)->score->scoreForMinor251 += increment;//incrementing II chord
@@ -218,9 +218,9 @@ public:
 										(*it2)->pointersToNextChordsFromProgression.push_back(*it4);
 
 										//info to which progression certain chord belongs
-										(*it2)->belongsToProgession = "minor251";
-										(*it3)->belongsToProgession = "minor251";
-										(*it4)->belongsToProgession = "minor251";
+										(*it2)->belongsToProgession.push_back("minor251");
+										(*it3)->belongsToProgession.push_back("minor251");
+										(*it4)->belongsToProgession.push_back("minor251");
 									}
 									l++;
 								}
@@ -260,7 +260,7 @@ public:
 									increment = 6;
 								}
 								else{
-									increment = 2;
+									increment = 3;
 								}
 								
 								(*it2)->score->scoreForFifthDown += increment;
@@ -270,8 +270,8 @@ public:
 								(*it2)->pointersToNextChordsFromProgression.push_back(*it3);
 
 								//info to which progression certain chord belongs
-								(*it2)->belongsToProgession = "fifthDown";
-								(*it3)->belongsToProgession = "fifthDown";
+								(*it2)->belongsToProgession.push_back("fifthDown");
+								(*it3)->belongsToProgession.push_back("fifthDown");
 								
 								
 							}
@@ -309,7 +309,7 @@ public:
 									increment = 7;
 								}
 								else if (sumOfPriorities >= 110) {
-									increment = 3;
+									increment = 2;
 								}
 								else {
 									increment = 1;
@@ -322,8 +322,8 @@ public:
 								(*it2)->pointersToNextChordsFromProgression.push_back(*it3);
 
 								//info to which progression certain chord belongs
-								(*it2)->belongsToProgession = "fourthDown";
-								(*it3)->belongsToProgession = "fourthDown";
+								(*it2)->belongsToProgession.push_back("fourthDown");
+								(*it3)->belongsToProgession.push_back("fourthDown");
 							}
 							j++;
 						}

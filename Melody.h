@@ -52,27 +52,6 @@ public:
 
 		}
 
-		//adding missing halfnotes to vector
-		/*barIdx = 0;
-		int counter = 0;
-		int i = 0;
-		std::vector<std::pair<int, int>>newVector;
-		for (auto it = melodyNotesToProcessVector.begin(); it != melodyNotesToProcessVector.end(); ++it) {
-
-			if (it->first > barIdx) {
-				barIdx = it->first;
-				if (counter < 4) {
-
-					newVector.push_back(melodyNotesToProcessVector[i-1]);
-				}
-
-				counter = 0;
-			}
-			newVector.push_back(*it);
-			counter++;
-			i++;
-		}
-		melodyNotesToProcessVector = newVector;*/
 		
 	}
 
@@ -85,7 +64,6 @@ public:
 		for (MidiBuffer::Iterator i(*melodyNotes); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
 
-				DBG("something");
 				if (time >= (int)actualBar) {
 					melodyNotesVectorToScaleDetection.push_back(-1);
 					actualBar += barLength;

@@ -25,20 +25,23 @@ public:
 				if (currentChord->pointersToNextChordsFromProgression.size() != 0) {
 					for (auto it2 = currentChord->pointersToNextChordsFromProgression.begin();
 						it2 != currentChord->pointersToNextChordsFromProgression.end(); ++it2) {
-						if (currentChord->belongsToProgession == "major251") {
+						if (std::count(currentChord->belongsToProgession.begin(), currentChord->belongsToProgession.end(),"major251")!=0) {
 							(*it2)->score->overallScore -= (*it2)->score->scoreForMajor251;//substracting points if certain progression wasn't chosen
 						}
-						else if (currentChord->belongsToProgession == "major251Long") {
+						/*else if (currentChord->belongsToProgession == "major251Long") {
 							(*it2)->score->overallScore -= (*it2)->score->scoreForMajor251Long;
-						}
-						else if (currentChord->belongsToProgession == "minor251") {
+						}*/
+						else if (std::count(currentChord->belongsToProgession.begin(), currentChord->belongsToProgession.end(), "minor251") != 0) {
 							(*it2)->score->overallScore -= (*it2)->score->scoreForMinor251;
 						}
-						else if (currentChord->belongsToProgession == "fifthDown") {
+						else if (std::count(currentChord->belongsToProgession.begin(), currentChord->belongsToProgession.end(), "fifthDown") != 0) {
 							(*it2)->score->overallScore -= (*it2)->score->scoreForFifthDown;
 						}
-						else if (currentChord->belongsToProgession == "fourthDown") {
+						else if (std::count(currentChord->belongsToProgession.begin(), currentChord->belongsToProgession.end(), "fourthDown") != 0) {
 							(*it2)->score->overallScore -= (*it2)->score->scoreForFourthDown;
+						}
+						else if (std::count(currentChord->belongsToProgession.begin(), currentChord->belongsToProgession.end(), "majorScheme") != 0) {
+							(*it2)->score->overallScore -= (*it2)->score->scoreForMajorScheme;
 						}
 
 					}

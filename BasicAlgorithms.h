@@ -6,6 +6,7 @@
 #include <set>
 #include "Chord.h"
 
+
 std::vector<int>signsSharps = { 66,61,68,63,70,65};//F#-E#
 std::vector<int>signsFlats = {70,63,68,61,66};//Bb-Gb
 std::vector<std::string>scaleNamesSharps = {"G","D","A","E","B","F#"};
@@ -13,19 +14,45 @@ std::vector<std::string>scaleNamesFlats= { "F","Bb","Eb","Ab","Db","Gb" };
 //int shIdx = 0; int scaleIdx = 0;
 class BasicAlgorithms {
 public:
-	/*void checkForHarmonicTriad(Chord* currentChord,std::vector<Chord*>chordsInProgression) {
-		Chord* lastChord = chordsInProgression.back();
-		if (lastChord->specialFunction == "D" && currentChord->specialFunction == "T")
-			currentChord->priority = 1000;
-		else if (lastChord->specialFunction == "T" && (currentChord->specialFunction == "S" || currentChord->specialFunction == "D"))
-			currentChord->priority = 1000;
-		else if(lastChord->specialFunction=="S"&&(currentChord->specialFunction=="D"||currentChord->specialFunction=="T"))
-			currentChord->priority = 1000;
-	}*/
 	BasicAlgorithms() {
 		
 	}
 	
+	void applyMajorScheme(std::map<int, std::vector<Chord*>>& chordsMap,std::vector<int>scaleBreakpoints) {
+		int i = 0;
+		for (auto it = chordsMap.begin(); it != chordsMap.end(); ++it) {
+			for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+				int step = (*it2)->step;
+				if (step != 1&&i<chordsMap.size()-1&&std::count(scaleBreakpoints.begin(),scaleBreakpoints.end(),i)==0&&(*it2)->belongsToProgession.size()==0) {
+					std::vector<int>nextPossibleSteps = getMajorSchemeVector(step);
+					for (auto it3 = chordsMap[i + 1].begin(); it3 != chordsMap[i + 1].end(); ++it3) {
+						if (std::count(nextPossibleSteps.begin(), nextPossibleSteps.end(), (*it3)->step) != 0) {
+							(*it3)->score->scoreForMajorScheme = 3;
+							
+						}
+					}
+				}
+
+			}
+			i++;
+		}
+	}
+
+	std::vector<int> getMajorSchemeVector(int step) {
+		if (step == 3)
+			return std::vector<int>{ 6 };
+		else if(step==6)
+			return std::vector<int>{2,4};
+		else if (step == 4)
+			return std::vector<int>{2,7};
+		else if (step == 2)
+			return std::vector<int>{5,7};
+		else if (step == 7)
+			return std::vector<int>{5, 1};
+		else if (step == 5)
+			return std::vector<int>{1};
+	}
+
 	std::string detectScale(std::vector<int>notes,int shIdx=0) {
 		std::vector<int>detectedSharpsIndexes;
 		std::vector<int>detectedFlatsIndexes;
@@ -101,6 +128,8 @@ public:
 		return matchedScaleName;
 	
 	}
+
+	
 
 	void checkForHarmonicTriad(std::map<int, std::vector<Chord*>>&chordsMap, std::vector<Chord*>&chordsInProgression,std::vector<int>&chordsInProgressionIds) {
 		int i = 0;
