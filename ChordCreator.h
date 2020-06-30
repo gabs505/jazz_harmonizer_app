@@ -7,6 +7,7 @@
 #include "Scales.h"
 #include "BasicAlgorithms.h"
 #include "JazzAlgorithms.h"
+#include "ScoringAlgorithms.h"
 
 
 
@@ -114,68 +115,9 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 			melody->chordsInProgression = std::vector<Chord*>(vectorSize, new Chord());
 			melody->chordsInProgressionIds = std::vector<int>(vectorSize, -1);
 		}
-
 	}
 
-	void countScoreForEachPossibleChord(Melody*& melody) {
-		for (auto it = melody->chordProgressionMatchesMap.begin(); it != melody->chordProgressionMatchesMap.end(); ++it) {
-			for (auto it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
-				(*it2)->countOverallScore();
-			}
-		}
-	}
-
-	void recountScoreForNextChords(Chord*chosenChord,std::vector<Chord*>optionalChords) {
-		for (auto it = optionalChords.begin(); it != optionalChords.end(); ++it) {
-			Chord* currentChord = *it;
-			if (currentChord->name != chosenChord->name) {//not including already chosen chord
-				if (currentChord->pointersToNextChordsFromProgression.size()!=0) {
-					for (auto it2 = currentChord->pointersToNextChordsFromProgression.begin();
-						it2 != currentChord->pointersToNextChordsFromProgression.end(); ++it2) {
-						if (currentChord->belongsToProgession == "major251") {
-							(*it2)->score->overallScore -= (*it2)->score->scoreForMajor251;//substracting points if certain progression wasn't chosen
-						}
-						else if (currentChord->belongsToProgession == "minor251") {
-							(*it2)->score->overallScore -= (*it2)->score->scoreForMinor251;
-						}
-						else if (currentChord->belongsToProgession == "fifthDown") {
-							(*it2)->score->overallScore -= (*it2)->score->scoreForFifthDown;
-						}
-						else if (currentChord->belongsToProgession == "fourthDown") {
-							(*it2)->score->overallScore -= (*it2)->score->scoreForFourthDown;
-						}
-
-					}
-				}
-			}
-		}
-		
-	}
-
-	void addScoreForChosenProgression(Chord* chord) {
-		if (chord->pointersToNextChordsFromProgression.size() != 0) {
-			for (auto it = chord->pointersToNextChordsFromProgression.begin(); it != chord->pointersToNextChordsFromProgression.end(); ++it) {
-				(*it)->overallScore += 1000;
-			}
-		}
-		
-	}
-
-	std::pair<Chord*, int> matchChordBasedOnScore(std::vector<Chord*>chords) {
-		int maxScore = 0;
-		int chordId;
-		Chord* matchedChord = new Chord();
-		int j = 0;
-		for (auto it2 = chords.begin(); it2 != chords.end(); ++it2) {
-			if ((*it2)->overallScore >= maxScore) {
-				maxScore = (*it2)->overallScore;
-				matchedChord = *it2;
-				chordId = j;
-			}
-			j++;
-		}
-		return std::make_pair(matchedChord, chordId);
-	}
+	
 
 	void matchChordInProgression(Melody*& melody) {
 		
@@ -185,7 +127,7 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 			Chord* matchedChord = new Chord();
 			int chordId=0;
 			
-			std::pair<Chord*, int> chosenChordData = matchChordBasedOnScore(it->second);
+			std::pair<Chord*, int> chosenChordData = scoringAlgorithms.matchChordBasedOnScore(it->second);
 			matchedChord = chosenChordData.first;
 			chordId = chosenChordData.second;
 			
@@ -200,8 +142,8 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 				}
 			}
 			
-			recountScoreForNextChords(matchedChord,it->second);
-			addScoreForChosenProgression(matchedChord);
+			scoringAlgorithms.recountScoreForNextChords(matchedChord,it->second);
+			scoringAlgorithms.addScoreForChosenProgression(matchedChord);
 
 			melody->chordsInProgression[i] = new Chord(matchedChord);
 			melody->chordsInProgressionIds[i] = chordId;
@@ -214,7 +156,7 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 	void matchChordProgression(Melody*& melody) {
 		
 		jazzAlgorithms.searchForHarmonicStructures(melody->chordProgressionMatchesMap);
-		countScoreForEachPossibleChord(melody);
+		scoringAlgorithms.countScoreForEachPossibleChord(melody);
 		matchChordInProgression(melody);
 
 	}
@@ -301,5 +243,6 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 	Scales scales;// scales object
 	BasicAlgorithms basicAlgorithms;
 	JazzAlgorithms jazzAlgorithms;
+	ScoringAlgorithms scoringAlgorithms;
 
 };

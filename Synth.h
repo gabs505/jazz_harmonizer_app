@@ -206,6 +206,8 @@ public:
 
 			}
 		}
+
+		fillMelodyBufferToProcessWithMissingHalfnotes();
 	}
 
 
@@ -237,7 +239,30 @@ public:
 		else if (m.isNoteOff())
 			melodyBufferToProcess->addEvent(m, (int)ceil(division)*(int)halfNoteLengthInSamples);
 	}
+	
+	void fillMelodyBufferToProcessWithMissingHalfnotes() {
+		MidiMessage m; int time;
+		MidiMessage lastEvent; int lastEventTime;
+		MidiBuffer newBuffer;
 
+		float halfNoteLengthInSamples = (float)quarterNoteLengthInSamples * 2.0;
+		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
+			float division = (float)time / (float)halfNoteLengthInSamples;
+			if (m.isNoteOn()) {
+				if (time > 0 && lastEventTime != (round(division) - 1) * (int)halfNoteLengthInSamples) {
+					newBuffer.addEvent(lastEvent, lastEventTime + (int)halfNoteLengthInSamples);
+				}
+				newBuffer.addEvent(m, round(division)*(int)halfNoteLengthInSamples);
+				lastEvent = m;
+				lastEventTime = round(division) * (int)halfNoteLengthInSamples;
+			}
+			else {
+				newBuffer.addEvent(m, time);
+			}
+		}
+		melodyBufferToProcess->swapWith(newBuffer);
+		
+	}
 	void playMelody() {
 		*currentMidiBuffer = *midiBufferMelody;
 		samplesPlayed = 0;
@@ -260,8 +285,9 @@ public:
 
 		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
-				MidiMessage transposedMidiMessage = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 12, m.getVelocity());
-				currentMidiBuffer->addEvent(transposedMidiMessage, time);
+				/*MidiMessage transposedMidiMessage = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 12, m.getVelocity());
+				currentMidiBuffer->addEvent(transposedMidiMessage, time);*/
+				currentMidiBuffer->addEvent(m, time);
 			}
 			else {
 				currentMidiBuffer->addEvent(m, time);
