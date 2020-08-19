@@ -5,6 +5,7 @@
 #include <vector>
 #include <set>
 #include "Chord.h"
+#include "PresetsData.h"
 
 
 std::vector<int>signsSharps = { 66,61,68,63,70,65};//F#-E#
@@ -27,7 +28,7 @@ public:
 					std::vector<int>nextPossibleSteps = getMajorSchemeVector(step);
 					for (auto it3 = chordsMap[i + 1].begin(); it3 != chordsMap[i + 1].end(); ++it3) {
 						if (std::count(nextPossibleSteps.begin(), nextPossibleSteps.end(), (*it3)->step) != 0) {
-							(*it3)->score->scoreForMajorScheme = 3;
+							(*it3)->score->scoreForMajorScheme = 3+scoreForMajorScheme;
 							
 						}
 					}
@@ -101,7 +102,7 @@ public:
 		else {
 			if (detectedSigns == "sharps") {
 				//searching for note without corresponding cross in melody (e.g. F#,F)
-				if (std::count(notes.begin(), notes.end(), detectedSharpsIndexes.back() - 1) == 0) {//if e.g only cross is in melody
+				if (std::count(notes.begin(), notes.end(), signsSharps[detectedSharpsIndexes.back()] - 1) == 0) {//if e.g only cross is in melody
 					matchedScaleName=scaleNamesSharps[detectedSharpsIndexes.back()];
 				}
 				else if (detectedSharpsIndexes.size() != 1) {//if e.g. cross and note without cross are present in melody

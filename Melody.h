@@ -48,6 +48,7 @@ public:
 					barIdx++;
 				}
 				melodyNotesToProcessVector.push_back(std::pair<int, int>(barIdx, m.getNoteNumber()));
+				melodyNotesToProcess.push_back(m.getNoteNumber());
 			}
 
 		}
@@ -91,7 +92,8 @@ public:
 	std::vector<int>melodyNotesVector; //all melody notes vector
 	std::vector<int>melodyNotesVectorToScaleDetection;//notes divided on bars by (-1) sign
 	std::set<int>melodyNotesSet;//unique melody notes set
-	std::vector<std::pair<int, int>>melodyNotesToProcessVector; //melody notes to which chord should be added
+	std::vector<std::pair<int, int>>melodyNotesToProcessVector; //melody notes to which chord should be added with bar indexes
+	std::vector<int>melodyNotesToProcess;
 
 	std::vector<Chord*>currentScaleChords;//chords for matched scale
 	std::map<std::string, std::vector<Chord*>>scalesChordsMap;

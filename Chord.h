@@ -34,6 +34,18 @@ public:
 		updatePriority();
 		setChordNotes();
 	}
+
+	Chord(std::string prime, int pn, std::string m) {
+		primeNote = prime;
+		primeMidiNumber = pn;
+		mode = m;
+		name = primeNote + mode;
+		setChordNotes();
+		priority = 0;
+		step = 0;
+		overallScore = 0;
+	}
+	
 	std::string primeNote;
 	int primeMidiNumber;
 	std::string mode;//major/minor/diminished
@@ -52,7 +64,7 @@ public:
 		std::vector<int>intervals;
 		chordNotesMidiNumbers.push_back(primeMidiNumber);
 		if (mode == "maj7") {
-			intervals = { 4,7,11,14, 21};//9,13
+			intervals = { 4,7,11,14,21};//9,13
 
 		}
 		else if (mode == "m7") {

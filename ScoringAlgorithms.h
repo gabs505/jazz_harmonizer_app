@@ -61,7 +61,7 @@ public:
 	}
 
 	std::pair<Chord*, int> matchChordBasedOnScore(std::vector<Chord*>chords) {
-		int maxScore = 0;
+		int maxScore = -1000;
 		int chordId;
 		Chord* matchedChord = new Chord();
 		int j = 0;

@@ -46,22 +46,69 @@ public:
 		: synthAudioSource(keyboardState),
 		keyboardComponent(keyboardState, MidiKeyboardComponent::horizontalKeyboard)
 	{
-
+		int x = 350;
+		
 		setAudioChannels(0, 2);
 
-		setSize(800, 700);
+		setSize(700, 600);
 
 	
 		container.setBounds(0, 0, 110, 200);
 
+		//labels
+		mainAppLabel.setBounds(100, 10, 500, 40);
+		melodySectionLabel.setBounds(x + 5, 55, 200, 30);
+		mainSectionLabel.setBounds(10, 55, 200, 30);
+		chordSectionLabel.setBounds(10, 265, 200, 30);
+
+		choosePresetLabel.setBounds(20, 300, 100, 40);
+
+	
+
+
+		addAndMakeVisible(mainAppLabel);
+		mainAppLabel.setColour(Label::textColourId, Colour(221, 221, 222));
+		mainAppLabel.setFont(juce::Font(40.0f, juce::Font::italic));
+		mainAppLabel.setJustificationType(juce::Justification::centred);
+		mainAppLabel.setText("Jazz Harmonizer", juce::dontSendNotification);
+
+		addAndMakeVisible(mainSectionLabel);
+		adjustMainLabel(mainSectionLabel);
+		mainSectionLabel.setText("Main Menu", juce::dontSendNotification);
+		
+
+		addAndMakeVisible(melodySectionLabel);
+		adjustMainLabel(melodySectionLabel);
+		melodySectionLabel.setText("Melody Section", juce::dontSendNotification);
+		
+
+		addAndMakeVisible(chordSectionLabel);
+		adjustMainLabel(chordSectionLabel);
+		chordSectionLabel.setText("Chord Section", juce::dontSendNotification);
+		
+		addAndMakeVisible(choosePresetLabel);
+		choosePresetLabel.setText("Preset: ", juce::dontSendNotification);
+
+
 		addAndMakeVisible(viewport);
-		viewport.setTopLeftPosition(10, 160);
-		viewport.setSize(900, 400);
+		viewport.setTopLeftPosition(10, 300);
+		viewport.setSize(680, 300);
 		viewport.setViewedComponent(&container, false);
 		
 
+		//buttons
+		button.setBounds(20, 90, 100, 30);
+		playMidi.setBounds(20, 125, 100, 30);
+		//playChords.setBounds(10, 120, 100, 30);
+		addChordsButton.setBounds(190, 305, 100, 30);
+		playChordsAndMelodyButton.setBounds(125, 125, 100, 30);
+		//saveToMidiFile.setBounds(300, 305, 100, 30);
+		stopPlayback.setBounds(300, 305, 100, 30);
+
+
 		addAndMakeVisible(button);
-		button.setButtonText("Load MIDI");
+		setButtonColours(button);
+		button.setButtonText("Load Melody");
 
 
 		button.onClick = [this] {FileChooser theFileChooser("Find a MIDI file", File(), "*.mid*");
@@ -71,31 +118,71 @@ public:
 		};
 
 		addAndMakeVisible(playMidi);
-		playMidi.setButtonText("Play MIDI");
-		playMidi.onClick = [this] {synthAudioSource.playMelody(); };
+		playMidi.setButtonText("Play Melody");
+		setButtonColours(playMidi);
+		playMidi.onClick = [this] {//synthAudioSource.playMelody();
+			synthAudioSource.pauseResumePlayback(playMidi); };
 
-		addAndMakeVisible(pauseResume);
-		pauseResume.setButtonText("Play/Pause");
-		pauseResume.onClick = [this] {synthAudioSource.pauseResumePlayback(); };
 
-		addAndMakeVisible(playChords);
-		playChords.onClick = [this] {synthAudioSource.playChords(); };
-		playChords.setButtonText("Play Chords");
 
 		addAndMakeVisible(addChordsButton);
 		addChordsButton.onClick = [this] {synthAudioSource.addChordProgression();
 		makeComponentRepaint(); };
+		setButtonColours(addChordsButton);
 		addChordsButton.setButtonText("Add Chords");
 
 
 		addAndMakeVisible(playChordsAndMelodyButton);
+		setButtonColours(playChordsAndMelodyButton);
 		playChordsAndMelodyButton.onClick = [this] {synthAudioSource.playChordsAndMelody(); };
 		playChordsAndMelodyButton.setButtonText("Play all");
 
+		/*addAndMakeVisible(saveToMidiFile);
+		setButtonColours(saveToMidiFile);
+		saveToMidiFile.onClick = [this] {
+			
+			FileChooser theFileChooser("Save file",File(),"*.mid");
+			theFileChooser.browseForFileToSave(false);
+			ScopedPointer<FileOutputStream> fos = theFileChooser.getResult().createOutputStream();
+			synthAudioSource.theMidiFile.writeTo(*fos);
+			 };
+		saveToMidiFile.setButtonText("Save");*/
 
+		addAndMakeVisible(stopPlayback);
+		setButtonColours(stopPlayback);
+		stopPlayback.onClick = [this] {synthAudioSource.stopPlayback(); };
+		stopPlayback.setButtonText("STOP");
+		//preset menu
+		presetMenu.setBounds(80, 305, 100, 30);
 
+		addAndMakeVisible(presetMenu);
+		presetMenu.addItem("Classic", 1);
+		presetMenu.addItem("Modern", 2);
+		presetMenu.addItem("Random", 3);
+		presetMenu.setSelectedId(1);
+		presetMenu.onChange = [this]
+		{ synthAudioSource.chosenPreset = (presetMenu.getText()).toStdString(); };
+		presetMenu.setColour(ComboBox::backgroundColourId, Colour::fromRGB(49,64,67));
+		presetMenu.setColour(ComboBox::textColourId, Colours::white);
 
+		
+			
+		melodicDensityMeter = new ProgressBar(synthAudioSource.melodicDensity);
+		addAndMakeVisible(melodicDensityMeter);
+		melodicDensityMeter->setPercentageDisplay(true);
+		melodicDensityMeter->setColour(ProgressBar::backgroundColourId, Colour::fromRGB(49, 64, 67));
 
+		
+		rhythmicDensityMeter = new ProgressBar(synthAudioSource.rhythmicDensity);
+		addAndMakeVisible(rhythmicDensityMeter);
+		rhythmicDensityMeter->setPercentageDisplay(true);
+
+		////meters
+
+		melodicDensityMeter->setBounds(x + 5+10, 100, x-5-40, 20);
+		rhythmicDensityMeter->setBounds(x+ 5+10, 130, x - 5 - 40, 20);
+		
+		
 	}
 
 	~MainContentComponent() override
@@ -103,37 +190,70 @@ public:
 		shutdownAudio();
 	}
 
+	void paint(juce::Graphics& g) override
+	{
+		g.fillAll(juce::Colour(72, 94, 121));
+		g.setColour(juce::Colour(91, 119, 153));
+		g.setFont(15.0f);
+		//g.fillRoundedRectangle(10, 70, 335, 200,20);
+		g.fillRoundedRectangle(10, 70, getWidth()/2-15, 200, 20);
+		//g.fillRoundedRectangle(355, 70, 335, 200, 20);
+		g.fillRoundedRectangle(getWidth() / 2+5, 70, getWidth() / 2 - 15, 200, 20);
+		g.fillRoundedRectangle(10, 280, getWidth()-20, getHeight()-290, 20);
+		//g.drawFittedText("Super duper harmonizer", 0, 0, 500, 90, Justification::horizontallyCentred,1);
+		//g.drawLine(10, 200, getWidth() - 10, 200, 10.0);
+	}
+
+	void setButtonColours(TextButton& button) {
+		button.setColour(TextButton::buttonColourId, Colour::fromRGB(49, 64, 67));
+		button.setColour(TextButton::textColourOffId, Colours::white);
+	}
+
+	void adjustMainLabel(Label& label) {
+		
+		label.setColour(Label::textColourId, Colour(221, 221, 222));
+		label.setFont(juce::Font(20.0f, juce::Font::bold));
+	}
+
 	void makeComponentRepaint() {
-		container.deleteAllChildren();
-		container.setBounds(0, 0, synthAudioSource.notesToProcessVector.size() * 120, 400);
+		container.removeAllChildren();
+		container.setBounds(0, 0, synthAudioSource.notesToProcessVector.size() * 112, 300);
 		setChordComboBoxes();
 		setPlayButtons();
 		setPlaySingleChordButtons();
+
+		playProgressionLabel.setBounds(10, 165, 200, 30);
+		playProgressionLabel.setText("Play progression: ", juce::dontSendNotification);
+		container.addAndMakeVisible(playProgressionLabel);
+		playSingleChordLabel.setBounds(10, 205, 200, 30);
+		playSingleChordLabel.setText("Play chord: ", juce::dontSendNotification);
+		container.addAndMakeVisible(playSingleChordLabel);
+
+
 		repaint();
 	}
 
 	void resized() override
 	{
+		
+		viewport.setSize(getWidth()-20, 400);
 
-		button.setBounds(10, 10, 100, 30);
-		playMidi.setBounds(10, 50, 100, 30);
-		pauseResume.setBounds(10, 90, 100, 30);
-		playChords.setBounds(10, 120, 100, 30);
-		addChordsButton.setBounds(150, 10, 100, 30);
-		playChordsAndMelodyButton.setBounds(150, 50, 100, 30);
-
-		viewport.setSize(getWidth(), 400);
+		
+		
 	
 	}
 
 	void setChordComboBoxes() {
 		comboBoxVec.clear();
+		synthAudioSource.changeComboBoxCounter = -(synthAudioSource.notesToProcessVector.size());
 		if (synthAudioSource.notesToProcessVector.size() != 0) {
 			int i = 0;
 			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end(); ++it) {
 				std::string id = "menu" + std::to_string(i);
 				auto menu = new ComboBox(String(id));
 				menu->setComponentID(String(i));
+
+				menu->setColour(ComboBox::backgroundColourId, Colour(49, 64, 67));
 
 				
 				int j = 0;
@@ -144,11 +264,11 @@ public:
 
 				menu->setSelectedId(synthAudioSource.chordsInProgressionIds[i]+1);
 
-				/*menu->onChange = [this, menu]
-				{synthAudioSource.changeChordProgressionFromGUI(menu->getComponentID(), menu->getSelectedId() - 1); };*/
+				menu->onChange = [this, menu]
+				{ synthAudioSource.changeComboBoxCounter++; synthAudioSource.changeChordProgressionFromGUI(menu->getComponentID(), menu->getSelectedId() - 1); };
 
 				comboBoxVec.push_back(menu);
-				menu->setBounds(10 + i * 110, 140, 100, 30);
+				menu->setBounds(40 + i * 110, 140, 100, 30);
 
 				container.addAndMakeVisible(menu);
 				i++;
@@ -167,8 +287,9 @@ public:
 
 				button->onClick = [this, button] { synthAudioSource.playFromChosenChord(button->getComponentID()); };
 
+				button->setColour(TextButton::buttonColourId, Colour(133,85,133));
 				//buttonsVec.push_back(button);
-				button->setBounds(10 + i * 110, 180, 30, 20);
+				button->setBounds(40 + i * 110, 190, 30, 20);
 				//button->setButtonText("Play");
 				button->setTooltip("Play chord progression from this point");
 				container.addAndMakeVisible(button);
@@ -187,7 +308,9 @@ public:
 
 				button->onClick = [this, button] { synthAudioSource.playSingleChosenChord(button->getComponentID()); };
 
-				button->setBounds(10 + i * 110, 210, 30, 20);
+				button->setColour(TextButton::buttonColourId, Colour(169,106,169));
+
+				button->setBounds(40 + i * 110, 230, 30, 20);
 				button->setTooltip("Play single chord");
 
 				container.addAndMakeVisible(button);
@@ -228,9 +351,25 @@ private:
 	TextButton playChords;
 	TextButton addChordsButton;
 	TextButton playChordsAndMelodyButton;
+	TextButton saveToMidiFile;
+	TextButton stopPlayback;
 	
 	Viewport viewport;
 	Component container;
+
+
+	Label mainAppLabel;
+	Label mainSectionLabel;
+	Label melodySectionLabel;
+	Label chordSectionLabel;
+	Label choosePresetLabel;
+	Label playProgressionLabel;
+	Label playSingleChordLabel;
+	
+
+	ComboBox presetMenu;
+	ProgressBar* melodicDensityMeter;
+	ProgressBar* rhythmicDensityMeter;
 
 	
 	std::vector<ComboBox*> comboBoxVec;

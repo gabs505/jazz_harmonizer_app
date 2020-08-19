@@ -2,6 +2,7 @@
 #include <math.h>
 #include "ChordCreator.h"
 
+
 //==============================================================================
 struct SineWaveSound : public SynthesiserSound
 {
@@ -105,10 +106,10 @@ public:
 	SynthAudioSource(MidiKeyboardState& keyState)
 		: keyboardState(keyState)
 	{
-		for (auto i = 0; i < 4; ++i)                // [1]
+		for (auto i = 0; i < 4; ++i)                
 			synth.addVoice(new SineWaveVoice());
 
-		synth.addSound(new SineWaveSound());       // [2]
+		synth.addSound(new SineWaveSound());       
 	}
 
 	void setUsingSineWaveSound()
@@ -118,7 +119,7 @@ public:
 
 	void prepareToPlay(int /*samplesPerBlockExpected*/, double sampleRate) override
 	{
-		synth.setCurrentPlaybackSampleRate(sampleRate); // [3]
+		synth.setCurrentPlaybackSampleRate(sampleRate); 
 	}
 
 	void releaseResources() override {}
@@ -145,9 +146,11 @@ public:
 			//incomingMidi.addEvents(*midiBuffer, samplesPlayed, bufferToFill.numSamples, sampleDeltaToAdd); //adding all messages at once
 			samplesPlayed += bufferToFill.numSamples;
 		}
-		else {
+		
+		else if(!midiIsPlaying) {
 			sendAllNotesOff(incomingMidi);
 		}
+
 		bufferLength = bufferToFill.numSamples;
 		keyboardState.processNextMidiBuffer(incomingMidi, bufferToFill.startSample,
 			bufferToFill.numSamples, true);
@@ -165,6 +168,15 @@ public:
 		theMidiFile.readFrom(theStream);
 		theMidiFile.convertTimestampTicksToSeconds();
 
+	}
+
+	void saveMidi(File& outputProgressionFile) {
+		
+		FileOutputStream fos(outputProgressionFile);
+		//fos.write(midiBufferChords,6000);
+		theMidiFile.writeTo(fos);
+		
+		
 	}
 
 	void setMidiFile() {
@@ -185,9 +197,12 @@ public:
 				int sampleOffset = (int)(sampleRate * m.getTimeStamp());
 				int newSampleOffset = alignNoteToGrid(m, sampleOffset);
 				//int newSampleOffset = sampleOffset;
+
+
 				if (newSampleOffset < lastTime) {
 					midiBufferMelody->addEvent(m, newSampleOffset);
 					createMelodyBufferToProcess(m, newSampleOffset);//memory leak-zapis poza zakres
+
 				}
 				else {
 					for (auto i = 1; i <= 16; i++)
@@ -208,6 +223,7 @@ public:
 		}
 
 		fillMelodyBufferToProcessWithMissingHalfnotes();
+		calculateMelodicDensity();
 	}
 
 
@@ -239,6 +255,7 @@ public:
 		else if (m.isNoteOff())
 			melodyBufferToProcess->addEvent(m, (int)ceil(division)*(int)halfNoteLengthInSamples);
 	}
+
 	
 	void fillMelodyBufferToProcessWithMissingHalfnotes() {
 		MidiMessage m; int time;
@@ -263,6 +280,28 @@ public:
 		melodyBufferToProcess->swapWith(newBuffer);
 		
 	}
+
+	void calculateMelodicDensity() {
+		MidiMessage m; int time; 
+		int j = 0; int previousNoteNumber;
+		int numOfJumps = 0;
+		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
+			if (m.isNoteOn()) {
+				if (j > 0) {
+					int distance = abs(m.getNoteNumber() - previousNoteNumber);
+					if (distance >= 5) {
+						numOfJumps++;
+					}
+				}
+				j++;
+				previousNoteNumber = m.getNoteNumber();
+			}
+			
+		}
+
+		melodicDensity = (double)numOfJumps / (double)j;
+	}
+
 	void playMelody() {
 		*currentMidiBuffer = *midiBufferMelody;
 		samplesPlayed = 0;
@@ -285,8 +324,7 @@ public:
 
 		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
-				/*MidiMessage transposedMidiMessage = MidiMessage::noteOn(m.getChannel(), m.getNoteNumber() + 12, m.getVelocity());
-				currentMidiBuffer->addEvent(transposedMidiMessage, time);*/
+				
 				currentMidiBuffer->addEvent(m, time);
 			}
 			else {
@@ -297,13 +335,17 @@ public:
 
 		samplesPlayed = 0;
 		midiIsPlaying = true;
+		
+
+		
+
 	}
 
 	void addChordProgression() {
 		MidiMessage m; int time;
 		midiBufferChords->clear();
 		chordCreator->createChordProgressionOutput(midiBufferMelody, melodyBufferToProcess, midiBufferChords,quarterNoteLengthInSamples,
-			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds, chordsInProgression);
+			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds, chordsInProgression,chosenPreset);
 	}
 
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
@@ -364,34 +406,61 @@ public:
 		midiIsPlaying = false;
 	}
 
-	void pauseResumePlayback() {
-
+	void pauseResumePlayback(TextButton& button) {
+		*currentMidiBuffer = *midiBufferMelody;
+		if (!midiIsPlaying && !midiIsPaused) {
+			samplesPlayed = 0;
+			midiIsPaused = true;
+		}
+			
 		if (midiIsPaused) {
 			midiIsPlaying = true;
 			midiIsPaused = false;
+			button.setButtonText("Stop");
 		}
 
 		else {
 			midiIsPlaying = false;
 			midiIsPaused = true;
+			button.setButtonText("Play Melody");
 		}
 
 	}
 
-	void changeChordProgressionFromGUI(String menuId, int chordId) {
-		midiBufferChords->clear();
-		int menuIdInt = menuId.getIntValue();
-		chordsInProgression[menuIdInt] = possibleChordsToEachNoteMap[menuIdInt][chordId];
-		MidiMessage m; int time; int idx = 0;
+	void stopPlayback() {
+		midiIsPlaying = false;
+		midiIsPaused = false;
+		samplesPlayed = 0;
+	}
 
-		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
-			Chord* matchedChord = chordsInProgression[idx];
-			chordCreator->addChordToMidiBuffer(m, time, matchedChord, midiBufferChords);
-			if (m.isNoteOn()) {
-				idx++;
+	void changeChordProgressionFromGUI(String menuId, int chordId) {
+		if (changeComboBoxCounter>0) {
+			midiBufferChords->clear();
+			int menuIdInt = menuId.getIntValue();
+			chordsInProgression[menuIdInt] = possibleChordsToEachNoteMap[menuIdInt][chordId];
+			MidiMessage m; int time; int idx = 0;
+			MidiBuffer* newBuffer = new MidiBuffer();
+			for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
+				if (idx < chordsInProgression.size()) {
+					Chord* matchedChord = chordsInProgression[idx];
+					if (m.isNoteOn()) {
+						idx++;
+					}
+					chordCreator->addChordToMidiBuffer(m, time, matchedChord, newBuffer);
+				}
+
+
+
+
+
 			}
 
+			midiBufferChords->swapWith(*newBuffer);
+
 		}
+			
+		
+		
 	}
 
 
@@ -414,11 +483,20 @@ public:
 
 	int lastNoteOnTime;
 	int adjacentNoteOns=0;
+
+	int changeComboBoxCounter = -1;
+
+	std::string chosenPreset;
+
+	double melodicDensity=0.0;
+	double rhythmicDensity = 0.0;
+
+	MidiFile theMidiFile;
 private:
 
 	MidiKeyboardState& keyboardState;
 	Synthesiser synth;
-	MidiFile theMidiFile;
+
 	int counter = 0;
 	int quarterNoteLengthInSamples;
 

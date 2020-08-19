@@ -4,10 +4,15 @@
 #include <vector>
 #include <set>
 #include "Chord.h"
+#include "otherVariables.h"
+#include <stdlib.h>   
+#include "PresetsData.h"
 
 class JazzAlgorithms {
 public:
-	void searchForHarmonicStructures(std::map<int, std::vector<Chord*>>& chordsMap) {
+	void searchForHarmonicStructures(std::map<int, std::vector<Chord*>>& chordsMap,std::string chosenPreset) {
+		setWeigths(chosenPreset);
+
 		searchForMajor251(chordsMap);
 		//searchForMajor251Long(chordsMap);
 		searchForMinor251(chordsMap);
@@ -40,21 +45,22 @@ public:
 										int increment;//score to add based on priority
 										int sumOfPriorities = (*it2)->priority + (*it3)->priority + (*it4)->priority;
 										if (sumOfPriorities == 300) {
-											increment = 11;
+											increment = 11+weightsFor251[0];
 										}
 										else if (sumOfPriorities > 200) {
-											increment = 10;
+											increment = 10 + weightsFor251[1];
 										}
 										else if (sumOfPriorities >= 120) {
-											increment = 9;
+											increment = 9 + weightsFor251[2];
 										}
 										else if (sumOfPriorities >= 100) {
-											increment = 6;
+											increment = 6 + weightsFor251[3];
 										}
 										else {
-											increment = 5;
+											increment = 5 + weightsFor251[4];
 										}
 
+										DBG(increment);
 										(*it2)->score->scoreForMajor251 += increment;//incrementing II chord
 										(*it3)->score->scoreForMajor251 += increment;
 										(*it4)->score->scoreForMajor251 += increment;
@@ -64,6 +70,7 @@ public:
 										(*it2)->pointersToNextChordsFromProgression.push_back(*it4);
 
 										//info to which progression certain chord belongs
+
 										(*it2)->belongsToProgession.push_back("major251");
 										(*it3)->belongsToProgession.push_back("major251");
 										(*it4)->belongsToProgession.push_back("major251");
@@ -194,19 +201,19 @@ public:
 										int increment;//score to add based on priority
 										int sumOfPriorities = (*it2)->priority + (*it3)->priority + (*it4)->priority;
 										if (sumOfPriorities == 300) {
-											increment = 11;
+											increment = 11 + weightsFor251[0];;
 										}
 										else if (sumOfPriorities > 200) {
-											increment = 10;
+											increment = 10 + weightsFor251[1];;
 										}
 										else if (sumOfPriorities >= 120) {
-											increment = 6;
+											increment = 6 + weightsFor251[2];;
 										}
 										else if (sumOfPriorities >= 100) {
-											increment = 5;
+											increment = 5 + weightsFor251[3];;
 										}
 										else {
-											increment = 5;
+											increment = 5 + weightsFor251[4];;
 										}
 
 										(*it2)->score->scoreForMinor251 += increment;//incrementing II chord
@@ -254,13 +261,13 @@ public:
 								int increment;//score to add based on priority
 								int sumOfPriorities = (*it2)->priority + (*it3)->priority;
 								if (sumOfPriorities == 200) {
-									increment = 9;
+									increment = 9+weightsForFifthDown[0];
 								}
 								else if (sumOfPriorities >= 110) {
-									increment = 6;
+									increment = 6 + weightsForFifthDown[1];
 								}
 								else{
-									increment = 3;
+									increment = 3 + weightsForFifthDown[2];
 								}
 								
 								(*it2)->score->scoreForFifthDown += increment;
@@ -306,13 +313,13 @@ public:
 								int increment;//score to add based on priority
 								int sumOfPriorities = (*it2)->priority + (*it3)->priority;
 								if (sumOfPriorities == 200) {
-									increment = 7;
+									increment = 7+ weightsForFourthDown[0];
 								}
 								else if (sumOfPriorities >= 110) {
-									increment = 2;
+									increment = 2 + weightsForFourthDown[1];
 								}
 								else {
-									increment = 1;
+									increment = 1 + weightsForFourthDown[2];
 								}
 
 								(*it2)->score->scoreForFourthDown += increment;
@@ -332,6 +339,107 @@ public:
 				}
 			}
 			k++;
+		}
+	}
+
+	void replaceChordsWithSecondaryDominants(Melody* &melody) {
+		int i = 1;
+		for (auto it = melody->chordsInProgression.begin()+1; it != melody->chordsInProgression.end()-1; ++it) {
+			Chord* secondaryDominant;
+			bool isIn251=false;
+			if(std::count((*it)->belongsToProgession.begin(), (*it)->belongsToProgession.end(),"major251")!=0){
+				isIn251 = true;
+			}
+			if ((*it)->name == melody->chordsInProgression[i - 1]->name && i%2!=0&&isIn251==false) {
+				Chord* nextChord = melody->chordsInProgression[i + 1];
+				auto it_ncPrime = std::find(sharps.begin(), sharps.end(), nextChord->primeNote);
+				int ncPrimeIdx= std::distance(sharps.begin(), it_ncPrime);
+				std::string sdPrimeName;
+				int newIdx = ncPrimeIdx + 7;
+				if (newIdx > sharps.size() - 1) {
+					sdPrimeName = sharps[newIdx % sharps.size()];
+				}
+				else {
+					sdPrimeName = sharps[newIdx];
+				}
+
+				secondaryDominant = new Chord(sdPrimeName,nextChord->primeMidiNumber+7,"7");
+
+				bool isCollapsing = false; //is chord note a semitone away from melody note
+				bool hasMelodyNote = false;
+				for (auto it2 = secondaryDominant->chordNotesMidiNumbers.begin(); it2 != secondaryDominant->chordNotesMidiNumbers.end(); ++it2) {
+					if (abs(60 + *it2 % 12 - 60 + melody->melodyNotesToProcess[i] % 12)==1) {
+						isCollapsing = true;
+					}
+					if (60 + *it2 % 12 == 60 + melody->melodyNotesToProcess[i] % 12) {
+						hasMelodyNote = true;
+					}
+				}
+				if (!isCollapsing && hasMelodyNote) {
+					melody->chordsInProgression[i] = secondaryDominant;
+					melody->chordProgressionMatchesMap[i].push_back(secondaryDominant);
+					melody->chordsInProgressionIds[i] = melody->chordProgressionMatchesMap[i].size() - 1;
+				}
+				
+			}
+			i++;
+		}
+	}
+
+	void replaceDominantWithTritoneSubstitute(Melody*& melody) {
+		//V chord indexes
+		std::vector<int>dominantChordIndexes;
+		int i = 0;
+		for (auto it = melody->chordsInProgression.begin(); it != melody->chordsInProgression.end(); ++it) {
+			//std::count((*it)->belongsToProgession.begin(), (*it)->belongsToProgession.end(), "major251") != 0
+			if ((*it)->mode == "7" && (*it)->overallScore>=1000) {
+				
+				dominantChordIndexes.push_back(i);
+			}
+			i++;
+		}
+
+		int numOfReplacements = ceil(percentForTSReplacement * (float)dominantChordIndexes.size());
+		std::vector<int>drawnDominantIndexes;
+		//randomly choosing indexes
+		for (int j = 0; j < numOfReplacements; j++) {
+			int randIdx = rand() % dominantChordIndexes.size();
+			while (std::count(drawnDominantIndexes.begin(),drawnDominantIndexes.end(), dominantChordIndexes[randIdx])!=0) {
+				randIdx = rand() % dominantChordIndexes.size();
+			}
+			drawnDominantIndexes.push_back(dominantChordIndexes[randIdx]);
+		}
+
+		for (auto it = drawnDominantIndexes.begin(); it != drawnDominantIndexes.end(); ++it) {
+			Chord* tritoneSubstitute;
+			Chord* currentChord = melody->chordsInProgression[*it];
+			auto it_ccPrime = std::find(sharps.begin(), sharps.end(), currentChord->primeNote);
+			int ncPrimeIdx = std::distance(sharps.begin(), it_ccPrime);
+			std::string tsPrimeName;
+			int newIdx = ncPrimeIdx + 6;
+			if (newIdx > sharps.size() - 1) {
+				tsPrimeName = sharps[newIdx % sharps.size()];
+			}
+			else {
+				tsPrimeName = sharps[newIdx];
+			}
+
+			tritoneSubstitute = new Chord(tsPrimeName, currentChord->primeMidiNumber + 6, "7");
+
+			bool hasMelodyNote = false;
+			for (auto it2 = tritoneSubstitute->chordNotesMidiNumbers.begin(); it2 != tritoneSubstitute->chordNotesMidiNumbers.end(); ++it2) {
+				if (60 + *it2 % 12 == 60 + melody->melodyNotesToProcess[*it] % 12) {
+					hasMelodyNote = true;
+				}
+			}
+			
+			if (hasMelodyNote) {
+				melody->chordsInProgression[*it] = tritoneSubstitute;
+				melody->chordProgressionMatchesMap[*it].push_back(tritoneSubstitute);
+				melody->chordsInProgressionIds[*it] = melody->chordProgressionMatchesMap[*it].size() - 1;
+			}
+			
+			
 		}
 	}
 };

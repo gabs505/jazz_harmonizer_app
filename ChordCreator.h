@@ -159,12 +159,18 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 	}
 
 	//match final chord progression based on algorithms
-	void matchChordProgression(Melody*& melody) {
+	void matchChordProgression(Melody*& melody,std::string chosenPreset) {
 		
-		jazzAlgorithms.searchForHarmonicStructures(melody->chordProgressionMatchesMap);
+		jazzAlgorithms.searchForHarmonicStructures(melody->chordProgressionMatchesMap,chosenPreset);
 		basicAlgorithms.applyMajorScheme(melody->chordProgressionMatchesMap, scales.scaleBreakpointsIndexes);
 		scoringAlgorithms.countScoreForEachPossibleChord(melody);
 		matchChordInProgression(melody);
+		if (replaceWithSD) {
+			jazzAlgorithms.replaceChordsWithSecondaryDominants(melody);
+			jazzAlgorithms.replaceDominantWithTritoneSubstitute(melody);
+		}
+			
+		
 		
 	}
 
@@ -184,7 +190,7 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 			for (auto it = matchedChord->chordNotesMidiNumbers.begin(); it != matchedChord->chordNotesMidiNumbers.end() - minusValue; it++) {
 				//playing higher notes in lower octave
 				if (m.isNoteOn()) {
-					if (*it > 80) {
+					if (*it > 78) {
 						*it -= 12;
 					}
 				//-------------------------------------
@@ -210,7 +216,7 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 
 
 	//creates MidiBuffer with resulting chord progression
-	void createChordProgression(MidiBuffer*& melodyBufferToProcess, MidiBuffer*& midiBufferChords, Melody*& melody) {
+	void createChordProgression(MidiBuffer* melodyBufferToProcess, MidiBuffer*& midiBufferChords, Melody*& melody) {
 		MidiMessage m; int time; int index = 0;
 		midiBufferChords->clear();
 		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
@@ -225,8 +231,8 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 
 
 
-	void createChordProgressionOutput(MidiBuffer*& midiBufferMelody, MidiBuffer*& melodyBufferToProcess, MidiBuffer*& midiBufferChords, int quarterNoteLengthInSamples,
-		std::vector<std::pair<int, int>>& notesToProcess, std::map<int, std::vector<Chord*>>& possibleChordsMap, std::vector<int>& chordsIds, std::vector<Chord*>& chordsInProgression) {
+	void createChordProgressionOutput(MidiBuffer*& midiBufferMelody, MidiBuffer* melodyBufferToProcess, MidiBuffer*& midiBufferChords, int quarterNoteLengthInSamples,
+		std::vector<std::pair<int, int>>& notesToProcess, std::map<int, std::vector<Chord*>>& possibleChordsMap, std::vector<int>& chordsIds, std::vector<Chord*>& chordsInProgression,std::string chosenPreset) {
 		Melody* melody = new Melody();
 		melody->melodyNotesSet.clear();
 		MidiBuffer* newBuffer = new MidiBuffer();
@@ -236,7 +242,7 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 
 		setChordsToScaleMap(melody);//create map containing chords corresponding to each scale step
 		createChordProgressionMatchesMap(melody);
-		matchChordProgression(melody);
+		matchChordProgression(melody,chosenPreset);
 
 		createChordProgression(melodyBufferToProcess, midiBufferChords, melody);
 
