@@ -168,6 +168,8 @@ public:
 		theMidiFile.readFrom(theStream);
 		theMidiFile.convertTimestampTicksToSeconds();
 
+		melodyMidiFile = fileMIDI;
+
 	}
 
 	void saveMidi(File& outputProgressionFile) {
@@ -183,6 +185,8 @@ public:
 		midiBufferMelody->clear(); //clearing midi buffer if any midi file was already loaded
 		melodyBufferToProcess->clear();
 		midiEventsTimes.clear();
+		chosenScalesNames.clear();
+		//initializeChosenScalesNamesVector();
 
 		double sampleRate = synth.getSampleRate();// getting sample rate
 		for (int t = 0; t < theMidiFile.getNumTracks(); t++) {//iterating through all tracks (in case of this app i need only one)
@@ -224,6 +228,7 @@ public:
 
 		fillMelodyBufferToProcessWithMissingHalfnotes();
 		calculateMelodicDensity();
+		calculateRhythmicDensity();
 	}
 
 
@@ -284,13 +289,21 @@ public:
 	void calculateMelodicDensity() {
 		MidiMessage m; int time; 
 		int j = 0; int previousNoteNumber;
-		int numOfJumps = 0;
+		int numOfBigJumps = 0;
+		int numOfMediumJumps = 0;
+		int numOfSmallJumps = 0;
 		for (MidiBuffer::Iterator i(*melodyBufferToProcess); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
 				if (j > 0) {
 					int distance = abs(m.getNoteNumber() - previousNoteNumber);
-					if (distance >= 5) {
-						numOfJumps++;
+					if (distance >= 10) {
+						numOfBigJumps++;
+					}
+					else if (distance >= 9 && distance>=5) {
+						numOfMediumJumps++;
+					}
+					else if (distance >= 4 && distance >= 3) {
+						numOfSmallJumps++;
 					}
 				}
 				j++;
@@ -299,7 +312,37 @@ public:
 			
 		}
 
-		melodicDensity = (double)numOfJumps / (double)j;
+		melodicDensity = (double)(numOfBigJumps+numOfMediumJumps*0.8+numOfSmallJumps*0.5) / (double)(j-1);
+	}
+
+	void calculateRhythmicDensity() {
+		MidiMessage m; int time;
+		int j = 0; int previousNoteTime;
+		int numOfQuarters = 0;
+		int numOfEights = 0;
+		int numOfSixteens = 0;
+		int distance = 0;
+		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
+			if (m.isNoteOn()) {
+				if (j > 0) {
+					distance=time-previousNoteTime;
+					if (distance <=(quarterNoteLengthInSamples+10)/4.0) {
+						numOfSixteens++;
+					}
+					else if (distance <= (quarterNoteLengthInSamples+10) / 2.0) {
+						numOfEights++;
+					}
+					else if (distance <= quarterNoteLengthInSamples+10) {
+						numOfQuarters++;
+					}
+				}
+				j++;
+				previousNoteTime = time;
+			}
+
+		}
+
+		rhythmicDensity = (double)(numOfSixteens + numOfEights*0.8 + numOfQuarters* 0.4) / (double)j;
 	}
 
 	void playMelody() {
@@ -314,25 +357,28 @@ public:
 		midiIsPlaying = true;
 	}
 
-	void playChordsAndMelody() {
+	void createChordsAndMelodyBuffer() {
 		MidiMessage m; int time;
-		currentMidiBuffer->clear();
-	
+		midiBufferChordsAndMelody->clear();
+
 		for (MidiBuffer::Iterator i(*midiBufferChords); i.getNextEvent(m, time);) {
-			currentMidiBuffer->addEvent(m, time);
+			midiBufferChordsAndMelody->addEvent(m, time);
 		}
 
 		for (MidiBuffer::Iterator i(*midiBufferMelody); i.getNextEvent(m, time);) {
 			if (m.isNoteOn()) {
-				
-				currentMidiBuffer->addEvent(m, time);
+
+				midiBufferChordsAndMelody->addEvent(m, time);
 			}
 			else {
-				currentMidiBuffer->addEvent(m, time);
+				midiBufferChordsAndMelody->addEvent(m, time);
 			}
 
 		}
-
+	}
+	void playChordsAndMelody() {
+		
+		*currentMidiBuffer = *midiBufferChordsAndMelody;
 		samplesPlayed = 0;
 		midiIsPlaying = true;
 		
@@ -344,8 +390,18 @@ public:
 	void addChordProgression() {
 		MidiMessage m; int time;
 		midiBufferChords->clear();
+		
+
 		chordCreator->createChordProgressionOutput(midiBufferMelody, melodyBufferToProcess, midiBufferChords,quarterNoteLengthInSamples,
-			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds, chordsInProgression,chosenPreset);
+			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds, chordsInProgression,chosenPreset,chosenScales,chosenScalesNames, mainKey);
+		createChordsAndMelodyBuffer();
+	}
+
+	void redoChordProgression() {
+		midiBufferChords->clear();
+		chordCreator->createChordProgressionOutput(midiBufferMelody, melodyBufferToProcess, midiBufferChords, quarterNoteLengthInSamples,
+			notesToProcessVector, possibleChordsToEachNoteMap, chordsInProgressionIds, chordsInProgression, chosenPreset, chosenScales, chosenScalesNames, mainKey);
+		createChordsAndMelodyBuffer();
 	}
 
 	int alignNoteToGrid(MidiMessage m, int sampleOffset) {
@@ -362,12 +418,20 @@ public:
 
 	void playFromChosenChord(String id) {
 		int idx = id.getIntValue();
-		int currentTime = midiEventsTimes[idx];
+		
+		int currentTime;
+		currentTime = quarterNoteLengthInSamples*2*idx;
+		/*
+			if (midiEventsTimes[idx] != 0)
+				currentTime = midiEventsTimes[idx] - (int)halfNoteLengthInSamples;
+			else
+				currentTime = midiEventsTimes[idx];*/
 		/*MidiBuffer* newMidiBuffer = new MidiBuffer();
 		newMidiBuffer->addEvents(*midiBufferChords, currentTime, midiBufferChords->getLastEventTime(), -currentTime);
 		*currentMidiBuffer = *newMidiBuffer;*/
 
-		*currentMidiBuffer = *midiBufferChords;
+		//*currentMidiBuffer = *midiBufferChords;
+		*currentMidiBuffer = *midiBufferChordsAndMelody;
 		samplesPlayed = currentTime;
 		midiIsPlaying = true;
 	}
@@ -378,7 +442,18 @@ public:
 		Chord* chordToPlay = chordsInProgression[idx];
 		int add = 0;
 		MidiBuffer* newMidiBuffer = new MidiBuffer();
-		for (auto it = chordToPlay->chordNotesMidiNumbers.begin(); it != chordToPlay->chordNotesMidiNumbers.end(); ++it) {
+		int minusValue;
+		if (chordToPlay->chordNotesMidiNumbers.size() > 3) {
+			minusValue = 2;
+		}
+		else {
+			minusValue = 0;
+		}
+		
+		for (auto it = chordToPlay->chordNotesMidiNumbers.begin(); it != chordToPlay->chordNotesMidiNumbers.end() - minusValue; it++) {
+			if (*it > 78) {
+				*it -= 12;
+			}
 			MidiMessage m = MidiMessage::noteOn(1, *it, (uint8)100);
 			newMidiBuffer->addEvent(m, 0+add);
 			add++;
@@ -448,19 +523,28 @@ public:
 					}
 					chordCreator->addChordToMidiBuffer(m, time, matchedChord, newBuffer);
 				}
-
-
-
-
-
 			}
 
 			midiBufferChords->swapWith(*newBuffer);
 
+		}	
+	}
+
+	void changeChosenScalesVectorFromGUI(std::string scaleName,int idx) {
+		int size = chosenScalesNames.size();
+		chosenScalesNames[idx] = scaleName;
+	}
+
+	void initializeChosenScalesNamesVector() {
+		std::vector<std::string> vec(100, "X");
+		chosenScalesNames = vec;
+	}
+
+	void applySettings(String optionValue, String mainKeyName,int metreIdx) {
+		if (optionValue == "Yes") {
+			mainKey = mainKeyName.toStdString();
+			DBG(mainKeyName);
 		}
-			
-		
-		
 	}
 
 
@@ -469,6 +553,7 @@ public:
 	MidiBuffer* midiBufferMelody = new MidiBuffer();
 	MidiBuffer* melodyBufferToProcess = new MidiBuffer();
 	MidiBuffer* midiBufferChords = new MidiBuffer();
+	MidiBuffer* midiBufferChordsAndMelody = new MidiBuffer();
 	int samplesPlayed;
 	bool midiIsPlaying = false;
 	bool midiIsPaused = false;
@@ -480,6 +565,8 @@ public:
 	std::vector<int>chordsInProgressionIds;
 	std::vector<Chord*>chordsInProgression;
 	std::vector<int>midiEventsTimes;//times for notesToProcess vector
+	std::vector<Scale*>chosenScales;
+	std::vector<std::string>chosenScalesNames;
 
 	int lastNoteOnTime;
 	int adjacentNoteOns=0;
@@ -492,6 +579,9 @@ public:
 	double rhythmicDensity = 0.0;
 
 	MidiFile theMidiFile;
+	File melodyMidiFile;
+
+	std::string mainKey = "X";
 private:
 
 	MidiKeyboardState& keyboardState;

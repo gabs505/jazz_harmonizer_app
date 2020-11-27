@@ -102,9 +102,10 @@ public:
 		//playChords.setBounds(10, 120, 100, 30);
 		addChordsButton.setBounds(190, 305, 100, 30);
 		playChordsAndMelodyButton.setBounds(125, 125, 100, 30);
-		//saveToMidiFile.setBounds(300, 305, 100, 30);
-		stopPlayback.setBounds(300, 305, 100, 30);
-
+		//80, 305, 100, 30
+		stopPlayback.setBounds(20, 160, 205, 30);
+		changeScales.setBounds(410, 305, 100, 30);
+		saveToMidiFile.setBounds(520, 305, 100, 30);
 
 		addAndMakeVisible(button);
 		setButtonColours(button);
@@ -115,6 +116,7 @@ public:
 		theFileChooser.browseForFileToOpen();
 		synthAudioSource.loadMidi(theFileChooser.getResult());
 		synthAudioSource.setMidiFile();
+		setMelodyMenu();
 		};
 
 		addAndMakeVisible(playMidi);
@@ -137,9 +139,28 @@ public:
 		playChordsAndMelodyButton.onClick = [this] {synthAudioSource.playChordsAndMelody(); };
 		playChordsAndMelodyButton.setButtonText("Play all");
 
-		/*addAndMakeVisible(saveToMidiFile);
+		addAndMakeVisible(saveToMidiFile);
 		setButtonColours(saveToMidiFile);
 		saveToMidiFile.onClick = [this] {
+			File f("D:\\Studia\\Magisterka\\zapis_tekstowy_progresji\\"+synthAudioSource.melodyMidiFile.getFileNameWithoutExtension()+"_"+presetMenu.getText()+".txt" );
+			f.replaceWithText(" ");
+			int i = 1;
+			for (auto it = synthAudioSource.chordsInProgression.begin(); it != synthAudioSource.chordsInProgression.end(); ++it) {
+				f.appendText("  " + (*it)->name);
+				
+					if (i % 2 == 0) {
+						f.appendText(" |");
+					}
+					if (i % 8 == 0) {
+						f.appendText(" \n");
+					}
+				
+				
+				i++;
+			}
+		};
+		saveToMidiFile.setButtonText("Save");
+		/*saveToMidiFile.onClick = [this] {
 			
 			FileChooser theFileChooser("Save file",File(),"*.mid");
 			theFileChooser.browseForFileToSave(false);
@@ -151,7 +172,15 @@ public:
 		addAndMakeVisible(stopPlayback);
 		setButtonColours(stopPlayback);
 		stopPlayback.onClick = [this] {synthAudioSource.stopPlayback(); };
-		stopPlayback.setButtonText("STOP");
+		stopPlayback.setButtonText("Stop playback");
+
+		addAndMakeVisible(changeScales);
+		setButtonColours(changeScales);
+		changeScales.onClick = [this] {synthAudioSource.redoChordProgression();
+		makeComponentRepaint(); };
+		changeScales.setButtonText("Change");
+
+
 		//preset menu
 		presetMenu.setBounds(80, 305, 100, 30);
 
@@ -176,6 +205,7 @@ public:
 		rhythmicDensityMeter = new ProgressBar(synthAudioSource.rhythmicDensity);
 		addAndMakeVisible(rhythmicDensityMeter);
 		rhythmicDensityMeter->setPercentageDisplay(true);
+		melodicDensityMeter->setColour(ProgressBar::backgroundColourId, Colour::fromRGB(49, 64, 67));
 
 		////meters
 
@@ -221,6 +251,8 @@ public:
 		setChordComboBoxes();
 		setPlayButtons();
 		setPlaySingleChordButtons();
+		createBarLabels();
+		createScaleLabels();
 
 		playProgressionLabel.setBounds(10, 165, 200, 30);
 		playProgressionLabel.setText("Play progression: ", juce::dontSendNotification);
@@ -311,12 +343,152 @@ public:
 				button->setColour(TextButton::buttonColourId, Colour(169,106,169));
 
 				button->setBounds(40 + i * 110, 230, 30, 20);
-				button->setTooltip("Play single chord");
+				
 
 				container.addAndMakeVisible(button);
 				i++;
 			}
 		}
+	}
+
+	void createBarLabels() {
+		if (synthAudioSource.notesToProcessVector.size() != 0) {
+			int i = 1;
+			for (auto it = synthAudioSource.notesToProcessVector.begin(); it != synthAudioSource.notesToProcessVector.end(); ++it) {
+				if (i == 1 || i % 4 == 0) {
+					std::string barNumber;
+					auto label = new Label();
+					if (i == 1) {
+						barNumber = std::to_string(i);
+						label->setBounds(40, 120, 30, 20);
+					}
+					else {
+						barNumber = std::to_string((int)(i + 2) / (int)2);
+						label->setBounds(40 + (i) * 110, 120, 30, 20);
+					}
+						
+					label->setText(barNumber, juce::dontSendNotification);
+					container.addAndMakeVisible(label);
+				}
+				
+				i++;
+			}
+		}
+
+	}
+
+	void createScaleLabels() {
+		if (synthAudioSource.chosenScales.size() != 0) {
+			int i = 0;
+			for (auto it = synthAudioSource.chosenScales.begin(); it != synthAudioSource.chosenScales.end(); ++it) {
+				Label* scaleLabel = new Label();
+				scaleLabel->setComponentID(String(std::to_string(i)));
+				std::string scaleName = (*it)->scaleName;
+				scaleLabel->setBounds(60 + (i*4) * 110, 120, 30, 20);
+				scaleLabel->setEditable(true);
+				scaleLabel->setText(scaleName, juce::dontSendNotification);
+				scaleLabel->onTextChange = [this, scaleLabel] {
+					std::string scaleName = scaleLabel->getText().toStdString();
+					synthAudioSource.changeChosenScalesVectorFromGUI(scaleName, scaleLabel->getComponentID().getIntValue());
+					 };
+				
+				container.addAndMakeVisible(scaleLabel);
+
+
+				i++;
+			}
+		}
+		
+	}
+	
+	void setMelodyMenu() {
+		DialogWindow* melodyMenu = new DialogWindow("Menu", Colour(169, 106, 169),true,true);
+		//ResizableWindow* melodyMenu = new ResizableWindow("Menu", false);
+		melodyMenu->setBounds(getWidth()/2-150, getHeight()/2-150, 500, 500);
+
+		Component* menuContent = new Component();
+		menuContent->setBounds(0, 100, 200, 200);
+		menuContent->centreWithSize(400, 400);
+
+		TextButton acceptButton;
+		acceptButton.setBounds(230,360, 150, 30);
+		acceptButton.setButtonText("Accept settings");
+		 
+		//acceptButton.setColour(TextButton::buttonColourId, Colour(133, 85, 133));
+
+		Label chooseKeyOptionLabel;
+		chooseKeyOptionLabel.setText("Is melody in one key? ", juce::dontSendNotification);
+		chooseKeyOptionLabel.setColour(Label::textColourId, juce::Colours::black);
+		chooseKeyOptionLabel.setBounds(50, 50, 150, 30);
+
+		Label enterKeyLabel;
+		enterKeyLabel.setText("Enter main major key: ", juce::dontSendNotification);
+		enterKeyLabel.setColour(Label::textColourId, juce::Colours::black);
+		enterKeyLabel.setBounds(50, 100, 150, 30);
+
+		Label enterKey;
+		enterKey.setText("C", juce::dontSendNotification);
+		enterKey.setColour(Label::textColourId, juce::Colours::white);
+		enterKey.setColour(Label::backgroundColourId, Colour(91, 119, 153));
+		enterKey.setEditable(true);
+		enterKey.setBounds(200, 100, 60, 30);
+		
+		enterKey.onTextChange = [this, &enterKey] {
+			mainKey = enterKey.getText();
+		};
+
+		auto chooseKeyOptionMenu = new ComboBox("100");
+		chooseKeyOptionMenu->setColour(ComboBox::backgroundColourId, Colour(91, 119, 153));
+		chooseKeyOptionMenu->addItem("Yes", 1);
+		chooseKeyOptionMenu->addItem("No", 2);
+		chooseKeyOptionMenu->setSelectedId(1);
+		chooseKeyOptionMenu->setBounds(200, 50, 60, 30);
+		chooseKeyOptionMenu->onChange = [this, chooseKeyOptionMenu] {selectedOption = chooseKeyOptionMenu->getText(); };
+
+
+		Label chooseMetreLabel;
+		chooseMetreLabel.setText("Choose time signature: ", juce::dontSendNotification);
+		chooseMetreLabel.setColour(Label::textColourId, juce::Colours::black);
+		chooseMetreLabel.setBounds(50, 150, 150, 30);
+
+		auto chooseMetreMenu = new ComboBox("100");
+		chooseMetreMenu->setColour(ComboBox::backgroundColourId, Colour(91, 119, 153));
+		chooseMetreMenu->addItem("4/4", 1);
+		chooseMetreMenu->addItem("3/4", 2);
+		chooseMetreMenu->setSelectedId(1);
+		chooseMetreMenu->setBounds(200, 150, 60, 30);
+		chooseMetreMenu->onChange = [this, chooseMetreMenu] {
+			metreId = chooseMetreMenu->getSelectedItemIndex();
+		};
+
+
+		
+
+		
+		menuContent->addAndMakeVisible(&chooseKeyOptionLabel);
+		menuContent->addAndMakeVisible(chooseKeyOptionMenu);
+		menuContent->addAndMakeVisible(&acceptButton);
+		menuContent->addAndMakeVisible(&enterKeyLabel);
+		menuContent->addAndMakeVisible(&enterKey);
+		menuContent->addAndMakeVisible(&chooseMetreLabel);
+		menuContent->addAndMakeVisible(chooseMetreMenu);
+		
+		
+		
+		
+		acceptButton.onClick = [this,melodyMenu, menuContent, chooseKeyOptionMenu, &enterKey] {
+			if (chooseKeyOptionMenu->getText() == "Yes") {
+				mainKey = enterKey.getText();
+			}
+			synthAudioSource.applySettings(selectedOption,mainKey,metreId);
+		DialogWindow* dw = menuContent->findParentComponentOfClass<DialogWindow>();
+		dw->exitModalState(0); };
+		
+		
+		
+		melodyMenu->showModalDialog("Menu", menuContent, this, Colour(191,191,191), true);
+	
+
 	}
 	void prepareToPlay(int samplesPerBlockExpected, double sampleRate) override
 	{
@@ -353,6 +525,7 @@ private:
 	TextButton playChordsAndMelodyButton;
 	TextButton saveToMidiFile;
 	TextButton stopPlayback;
+	TextButton changeScales;
 	
 	Viewport viewport;
 	Component container;
@@ -366,6 +539,7 @@ private:
 	Label playProgressionLabel;
 	Label playSingleChordLabel;
 	
+	
 
 	ComboBox presetMenu;
 	ProgressBar* melodicDensityMeter;
@@ -375,6 +549,10 @@ private:
 	std::vector<ComboBox*> comboBoxVec;
 	std::vector<int>intVector;
 	String selectedComboBoxIdx;
+
+	String selectedOption;
+	String mainKey;
+	int metreId;
 
 	std::vector<TextButton*>buttonsVec;
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainContentComponent)

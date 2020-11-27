@@ -17,6 +17,9 @@ public:
 		scaleName = scaleN;
 		type = t;
 	}
+	Scale() {
+
+	}
 
 	std::string scaleName;
 	std::vector<int>notesMidiNumbers;
@@ -222,6 +225,21 @@ public:
 
 		detectScaleBreakpoints();
 	}
+
+	void setMatchedScalesFromGUI(std::vector<std::string>matchedScalesNames) {
+		int i = 0;
+		for (auto it = matchedScalesNames.begin(); it != matchedScalesNames.end(); ++it) {
+			for (auto it2 = majorScalesVector.begin(); it2 != majorScalesVector.end(); ++it2) {
+				if ((*it2)->scaleName == *it) {
+					matchedScales[i]=*it2;
+				}
+			}
+			i++;
+		}
+		
+	}
+
+	
 
 	//saves indexes of point on which scale changes to vector
 	void detectScaleBreakpoints() {

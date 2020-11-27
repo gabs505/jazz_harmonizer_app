@@ -47,11 +47,31 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 		melody->transposeMelodyNotesToProcess();
 	}
 
-	void matchScales(MidiBuffer* melodyNotes, Melody*& melody, int quarterNoteLengthInSamples) {
+	void matchScales(MidiBuffer* melodyNotes, Melody*& melody, int quarterNoteLengthInSamples,std::vector<std::string>chosenScalesNames, std::string mainKey) {
+		
 		melody->setMelodyNotes(melodyNotes); //creating a set of melody notes
 		melody->setMelodyNotesVectorToScaleDetection(melodyNotes, quarterNoteLengthInSamples);
 		melody->transposeMelodyNotes();
-		scales.findScaleMatches(melody);
+		if (chosenScalesNames.size()==0) {
+
+			scales.findScaleMatches(melody);
+			if (mainKey != "X") {
+				Scale* mainScale = new Scale();
+				for (auto it = scales.majorScalesVector.begin(); it != scales.majorScalesVector.end(); ++it) {
+					if ((*it)->scaleName == mainKey) {
+						mainScale = *it;
+					}
+				}
+				
+				for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); it++) {
+					*it = mainScale;
+				}
+			}
+		}
+		else {
+			scales.setMatchedScalesFromGUI(chosenScalesNames);
+		}
+		
 		
 
 	}
@@ -232,13 +252,15 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 
 
 	void createChordProgressionOutput(MidiBuffer*& midiBufferMelody, MidiBuffer* melodyBufferToProcess, MidiBuffer*& midiBufferChords, int quarterNoteLengthInSamples,
-		std::vector<std::pair<int, int>>& notesToProcess, std::map<int, std::vector<Chord*>>& possibleChordsMap, std::vector<int>& chordsIds, std::vector<Chord*>& chordsInProgression,std::string chosenPreset) {
+		std::vector<std::pair<int, int>>& notesToProcess, std::map<int, std::vector<Chord*>>& possibleChordsMap, std::vector<int>& chordsIds, std::vector<Chord*>& chordsInProgression,std::string chosenPreset, std::vector<Scale*>&chosenScales,std::vector<std::string>&chosenScalesNames, std::string mainKey) {
+		
 		Melody* melody = new Melody();
 		melody->melodyNotesSet.clear();
 		MidiBuffer* newBuffer = new MidiBuffer();
-
 		prepareMelodyToProcess(melodyBufferToProcess, melody, quarterNoteLengthInSamples);
-		matchScales(midiBufferMelody, melody, quarterNoteLengthInSamples);
+		
+
+		matchScales(midiBufferMelody, melody, quarterNoteLengthInSamples,chosenScalesNames, mainKey);
 
 		setChordsToScaleMap(melody);//create map containing chords corresponding to each scale step
 		createChordProgressionMatchesMap(melody);
@@ -250,6 +272,27 @@ for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); +
 		possibleChordsMap = melody->chordProgressionMatchesMap;//giving Synth Audio Source class access to possibleChordsToEachNoteMap (GUI use)
 		chordsIds = melody->chordsInProgressionIds;
 		chordsInProgression = melody->chordsInProgression;
+		chosenScales = scales.matchedScales;
+		if (chosenScalesNames.size() == 0) {
+		for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); ++it) {
+			
+				chosenScalesNames.push_back((*it)->scaleName);
+			
+			
+		}
+		}
+		else {
+			int i = 0;
+			for (auto it = scales.matchedScales.begin(); it != scales.matchedScales.end(); ++it) {
+
+				chosenScalesNames[i]=(*it)->scaleName;
+
+				i++;
+			}
+
+		}
+		
+		
 		delete melody;
 
 

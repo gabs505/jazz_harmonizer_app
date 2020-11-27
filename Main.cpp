@@ -18,7 +18,7 @@ public:
 	const String getApplicationName() override { return "SynthUsingMidiInputTutorial"; }
 	const String getApplicationVersion() override { return "1.0.0"; }
 
-	void initialise(const String&) override { mainWindow.reset(new MainWindow("SynthUsingMidiInputTutorial", new MainContentComponent(), *this)); }
+	void initialise(const String&) override { mainWindow.reset(new MainWindow("JazzHarmonizer", new MainContentComponent(), *this)); }
 	void shutdown() override { mainWindow = nullptr; }
 
 private:
